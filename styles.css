@@ -257,3 +257,35 @@ body{padding-bottom:70px}
   width: 150px;   /* adjust size */
   height: auto;
 }
+
+.about-card {
+  border: 3px ridge #dcdcff;
+  background: linear-gradient(180deg, rgba(255,255,255,0.1), rgba(100,100,255,0.1));
+  padding: 20px;
+  margin: 20px auto;
+  max-width: 800px;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  text-align: center;
+}
+
+.about-card h2 {
+  font-size: 1.8em;
+  color: #fff;
+  text-shadow: 0 0 6px #ff00ff, 0 0 10px #00ffff;
+  margin-bottom: 10px;
+}
+
+.about-card p {
+  line-height: 1.6;
+  color: #f2f2ff;
+  margin-bottom: 14px;
+}
+
+.retro-flair {
+  margin-top: 16px;
+  border: 2px dashed #aaaaff;
+  padding: 6px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.05);
+}
