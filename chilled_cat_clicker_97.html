@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Chilled Cat Clicker ’97+</title>
+<style>
+  body { background:#001a33; font-family:Verdana,Arial,sans-serif; color:#fff; margin:0; }
+  .wrap { max-width:780px; margin:20px auto; padding:10px; }
+  .crt-card { border:4px ridge #9cf; background:#082447; border-radius:8px; }
+  .titlebar { background:#003a80; padding:6px 10px; color:#fff; font-weight:bold; }
+  .panel { display:flex; justify-content:space-between; padding:8px; }
+  .btn { border:3px outset #bdf; background:#0d5bd1; color:#fff; padding:6px 12px; cursor:pointer; }
+  .stage { width:480px; height:320px; margin:0 auto; background:#0b2950; border:4px groove #9cf; position:relative; overflow:hidden; }
+  .cat { position:absolute; width:64px; height:64px; cursor:pointer; user-select:none; transition:transform .05s; object-fit:contain; }
+  .overlay { position:absolute; inset:0; background:rgba(0,0,0,.75); color:#fff; display:none; justify-content:center; align-items:center; }
+  .overlay.show { display:flex; }
+  .scoreboard { font-size:14px; margin-top:10px; background:#00254d; padding:8px; border:3px ridge #9cf; }
+  .scoreboard h2 { margin:0 0 8px 0; font-size:16px; }
+  .scoreboard ol { margin:0; padding-left:18px; }
+  .save-msg { margin-top:6px; color:#3cff87; display:none; font-weight:700; }
+  .save-msg.show { display:block; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="crt-card">
+    <div class="titlebar">🐾 Chilled Cat Clicker ’97+</div>
+    <div class="panel">
+      <div>Score: <b id="score">0</b> | Time: <b id="time">30.0</b>s</div>
+      <button class="btn" id="startBtn">Start</button>
+    </div>
+    <div class="stage" id="stage">
+      <img id="cat" class="cat" src="files/images/chilled_cat1.webp" alt="Chilled Cat">
+      <div class="overlay" id="overlay">
+        <div>
+          <h2>Game Over!</h2>
+          <p>Your score: <b id="finalScore">0</b></p>
+          <label>Enter name: <input type="text" id="username" aria-label="player name"></label>
+          <button class="btn" id="submitScore">Submit Score</button>
+          <div id="saveMsg" class="save-msg" role="status" aria-live="polite">Score saved!</div>
+          <div class="scoreboard" id="scoreboard">
+            <h2>Top 5</h2>
+            <ol id="highscores"></ol>
+          </div>
+          <button class="btn" id="restartBtn">Play Again</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  const stage=document.getElementById('stage');
+  const cat=document.getElementById('cat');
+  const overlay=document.getElementById('overlay');
+  const scoreEl=document.getElementById('score');
+  const timeEl=document.getElementById('time');
+  const finalScore=document.getElementById('finalScore');
+  const startBtn=document.getElementById('startBtn');
+  const restartBtn=document.getElementById('restartBtn');
+  const submitBtn=document.getElementById('submitScore');
+  const usernameInput=document.getElementById('username');
+  const highscoresList=document.getElementById('highscores');
+  const saveMsg=document.getElementById('saveMsg');
+
+  let score=0, timeLeft=30, running=false, raf;
+  let x=40,y=40,vx=2,vy=2;
+  const stickers=[
+    'files/stickers/premium_sticker1.webp',
+    'files/stickers/premium_sticker2.webp',
+    'files/stickers/premium_sticker3.webp',
+    'files/stickers/premium_sticker1.webp'
+  ];
+  let stickerIndex=0;
+  let submitted=false;
+
+  // rotate sticker every 3s
+  setInterval(()=>{
+    stickerIndex=(stickerIndex+1)%stickers.length;
+    cat.src=stickers[stickerIndex];
+  },3000);
+
+  function tick(){
+    if(!running)return;
+    const r=stage.getBoundingClientRect();
+    x+=vx; y+=vy;
+    if(x<0){x=0;vx*=-1;}
+    if(y<0){y=0;vy*=-1;}
+    if(x>r.width-cat.width){x=r.width-cat.width;vx*=-1;}
+    if(y>r.height-cat.height){y=r.height-cat.height;vy*=-1;}
+    cat.style.transform=`translate(${x}px,${y}px)`;
+    timeLeft-=1/60;
+    timeEl.textContent=Math.max(0,timeLeft).toFixed(1);
+    if(timeLeft<=0) endGame(); else raf=requestAnimationFrame(tick);
+  }
+
+  function startGame(){
+    score=0; scoreEl.textContent=0; timeLeft=30; overlay.classList.remove('show');
+    running=true; submitted=false; submitBtn.disabled=false; usernameInput.disabled=false; saveMsg.classList.remove('show'); saveMsg.textContent='Score saved!';
+    raf=requestAnimationFrame(tick);
+  }
+
+  function endGame(){
+    running=false; cancelAnimationFrame(raf);
+    finalScore.textContent=score;
+    overlay.classList.add('show');
+    loadScores();
+  }
+
+  cat.addEventListener('click',()=>{if(running){score++; scoreEl.textContent=score;}});
+  startBtn.addEventListener('click',startGame);
+  restartBtn.addEventListener('click',startGame);
+  submitBtn.addEventListener('click',()=>{
+    if(submitted) return; // prevent multiple submissions
+    submitted=true;
+    submitBtn.disabled=true;
+    usernameInput.disabled=true;
+    const name=usernameInput.value.trim()||'Anon';
+    const entry={name,score};
+    const hs=JSON.parse(localStorage.getItem('ccc97_scores')||'[]');
+    hs.push(entry);
+    hs.sort((a,b)=>b.score-a.score);
+    localStorage.setItem('ccc97_scores',JSON.stringify(hs.slice(0,5)));
+    loadScores();
+    saveMsg.textContent='Score saved!';
+    saveMsg.classList.add('show');
+  });
+
+  function loadScores(){
+    const hs=JSON.parse(localStorage.getItem('ccc97_scores')||'[]');
+    highscoresList.innerHTML=hs.map(e=>`<li>${e.name}: ${e.score}</li>`).join('');
+  }
+})();
+</script>
+</body>
+</html>
