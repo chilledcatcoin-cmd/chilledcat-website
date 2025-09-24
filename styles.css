@@ -289,3 +289,17 @@ body{padding-bottom:70px}
   border-radius: 8px;
   background: rgba(255,255,255,0.05);
 }
+
+.browser-footer {
+  text-align: center;
+  margin-top: 40px;
+  font-family: "Courier New", monospace;
+  font-size: 14px;
+  color: white;
+}
+
+.browser-footer img {
+  margin: 5px;
+  border: 2px solid #000;
+  image-rendering: pixelated; /* makes it look 90s */
+}
