@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>CatSweeper ’97 — Chilled Cat Minesweeper</title>
 <!-- You can override stickers via ?stickers=url1,url2 or by setting window.CATSWEEPER_STICKERS before this script. -->
-<link rel="preload" as="image" href="https://chilledcatcoin-cmd.github.io/chilledcat-website//files/stickers/premium_sticker1.webp">
-<link rel="preload" as="image" href="https://chilledcatcoin-cmd.github.io/chilledcat-website//files/stickers/premium_sticker2.webp">
-<link rel="preload" as="image" href="https://chilledcatcoin-cmd.github.io/chilledcat-website//files/stickers/premium_sticker3.webp">
-<link rel="preload" as="image" href="https://chilledcatcoin-cmd.github.io/chilledcat-website//files/stickers/premium_sticker4.webp">
+<link rel="preload" as="image" href="./files/stickers/premium_sticker1.webp">
+<link rel="preload" as="image" href="./files/stickers/premium_sticker2.webp">
+<link rel="preload" as="image" href="./files/stickers/premium_sticker3.webp">
+<link rel="preload" as="image" href="./files/stickers/premium_sticker4.webp">
 <style>
   :root{ --tile: 28px; --gap: 2px; --bg1:#0b2a52; --bg2:#081e3b; --edge:#9cf; --accent:#ffe066; --good:#3cff87; --bad:#ff5d73; }
   html,body{height:100%}
@@ -97,10 +97,10 @@
     const viaQuery = q ? q.split(',').map(s=>s.trim()).filter(Boolean) : null;
     const viaGlobal = (window.CATSWEEPER_STICKERS && window.CATSWEEPER_STICKERS.length) ? window.CATSWEEPER_STICKERS : null;
     const defaults = [
-      'files/stickers/premium_sticker1.webp',
-      'files/stickers/premium_sticker2.webp',
-      'files/stickers/premium_sticker3.webp',
-      'files/stickers/premium_sticker4.webp'
+      './files/stickers/premium_sticker1.webp',
+      './files/stickers/premium_sticker2.webp',
+      './files/stickers/premium_sticker3.webp',
+      './files/stickers/premium_sticker4.webp'
     ];
     return viaGlobal || viaQuery || defaults;
   }
