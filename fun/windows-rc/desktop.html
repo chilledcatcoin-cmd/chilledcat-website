@@ -12,14 +12,18 @@
       font-family: sans-serif;
       color: white;
     }
+
     #desktop-area {
       width: 100%;
       height: calc(100% - 40px);
       position: relative;
     }
+
     iframe {
       border: none;
     }
+
+    /* Taskbar */
     #taskbar {
       position: absolute;
       bottom: 0;
@@ -28,14 +32,16 @@
       height: 40px;
       z-index: 10;
     }
+
+    /* Start menu */
     #startmenu {
       position: absolute;
-      bottom: 40px;
-      left: 0;
-      width: 200px;
-      height: 250px;
-      display: none;
-      z-index: 9;
+      bottom: 40px;   /* sits right above the taskbar */
+      left: 5px;      /* aligns with Start button margin */
+      width: 220px;
+      border: none;
+      display: none;  /* hidden until toggled */
+      z-index: 20;
     }
   </style>
 </head>
@@ -44,7 +50,7 @@
     <!-- desktop icons or windows go here -->
   </div>
 
-  <!-- Start menu iframe -->
+  <!-- Start menu -->
   <iframe id="startmenu" src="./system/startmenu.html"></iframe>
 
   <!-- Taskbar -->
@@ -53,13 +59,28 @@
   </div>
 
   <script>
-    // Listen for messages from taskbar iframe
+    const menu = document.getElementById("startmenu");
+
+    // Handle messages from child iframes
     window.addEventListener("message", (event) => {
+      // Toggle start menu visibility
       if (event.data === "toggle-startmenu") {
-        const menu = document.getElementById("startmenu");
-        menu.style.display = (menu.style.display === "none" || menu.style.display === "") 
-          ? "block" 
-          : "none";
+        menu.style.display =
+          (menu.style.display === "none" || menu.style.display === "")
+            ? "block"
+            : "none";
+      }
+
+      // ✅ Resize start menu dynamically
+      if (event.data.type === "resize-startmenu") {
+        menu.style.height = event.data.height + "px";
+      }
+    });
+
+    // Optional: close start menu when clicking outside
+    document.addEventListener("click", (e) => {
+      if (!menu.contains(e.target) && e.target.tagName !== "IFRAME") {
+        menu.style.display = "none";
       }
     });
   </script>

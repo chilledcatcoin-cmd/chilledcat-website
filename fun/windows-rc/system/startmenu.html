@@ -3,23 +3,98 @@
 <head>
   <meta charset="UTF-8">
   <style>
-    body {
+    html, body {
       margin: 0;
-      background: #f0f0f0;
-      font-family: sans-serif;
+      padding: 0;
+      font-family: "MS Sans Serif", sans-serif;
       font-size: 14px;
+      background: #f0f0f0;
+      display: flex;
+      align-items: stretch;  /* ✅ sidebar & menu stretch equal height */
     }
-    ul { list-style: none; padding: 10px; margin: 0; }
-    li { padding: 5px; cursor: pointer; }
-    li:hover { background: #c0c0c0; }
+
+    /* Outer 3D beveled border */
+    body {
+      border-top: 2px solid #fff;
+      border-left: 2px solid #fff;
+      border-right: 2px solid #404040;
+      border-bottom: 2px solid #404040;
+      box-sizing: border-box;
+    }
+
+    /* Left vertical branding */
+    .start-brand {
+      width: 50px;
+      background: #000080;
+      color: white;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      transform: rotate(180deg); /* bottom → top */
+    }
+
+    /* Menu list */
+    .menu {
+      flex: 1;
+      background: #f0f0f0;
+      border-left: 2px solid #808080;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+    }
+
+    .menu ul {
+      list-style: none;
+      margin: 0;
+      padding: 5px 0;
+      width: 100%;
+    }
+
+    .menu li {
+      padding: 5px 10px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .menu li:hover {
+      background: #c0c0c0;
+    }
   </style>
 </head>
 <body>
-  <ul>
-    <li>Programs</li>
-    <li>Documents</li>
-    <li>Settings</li>
-    <li>Run...</li>
-  </ul>
+  <!-- Left branding column -->
+  <div class="start-brand">
+    Windows RC
+  </div>
+
+  <!-- Right menu options -->
+  <div class="menu">
+    <ul>
+      <li>Programs</li>
+      <li>Documents</li>
+      <li>Settings</li>
+      <li>Find</li>
+      <li>Help</li>
+      <li>Run...</li>
+      <li>Shut Down...</li>
+    </ul>
+  </div>
+
+  <!-- ✅ Auto-resize iframe to fit content -->
+  <script>
+    function sendHeight() {
+      parent.postMessage(
+        { type: "resize-startmenu", height: document.body.scrollHeight },
+        "*"
+      );
+    }
+
+    // Send height on load and resize
+    window.onload = sendHeight;
+    window.onresize = sendHeight;
+  </script>
 </body>
 </html>
