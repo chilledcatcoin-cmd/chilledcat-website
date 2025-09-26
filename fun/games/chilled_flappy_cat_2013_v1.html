@@ -39,10 +39,8 @@
     @media (max-width: 768px) {
       .titleTop { font-size: 32px; }
       .tapToStart { font-size: 20px; }
-      canvas { width: 100% !important; height: 100% !important; }
     }
   </style>
-  <!-- PlayFab SDK -->
   <script src="https://download.playfab.com/PlayFabClientApi.js"></script>
 </head>
 <body>
@@ -65,38 +63,28 @@
 
 <script>
 (()=>{
-// ===== Device detect =====
-const isMobile=/Mobi|Android/i.test(navigator.userAgent);
-
-// ===== Canvas & DPR-safe sizing =====
 const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
 const DPR=Math.max(1,Math.floor(window.devicePixelRatio||1));
-// Logical (CSS pixel) canvas size used by game logic:
-let VW=480, VH=720;
+let VW=480,VH=720;
 
 function fit(){
   const vw=window.innerWidth, vh=window.innerHeight;
+  const aspect = 3/2; // width:height
 
-  if(isMobile){
-    VW = vw;
-    VH = vh;
-  } else {
-    VW = Math.min(520, Math.max(360, vw - 24));
-    VH = VW * 1.5; // 3:2 aspect like original
-  }
+  let tw=vw, th=tw*aspect;
+  if(th>vh){ th=vh; tw=th/aspect; }
 
-  // Set CSS size
-  canvas.style.width = VW + 'px';
-  canvas.style.height = VH + 'px';
-  // Set backing store size
-  canvas.width = Math.floor(VW * DPR);
-  canvas.height = Math.floor(VH * DPR);
-  // Scale so 1 unit in code == 1 CSS pixel
+  VW=tw; VH=th;
+
+  canvas.style.width=VW+'px';
+  canvas.style.height=VH+'px';
+  canvas.width=Math.floor(VW*DPR);
+  canvas.height=Math.floor(VH*DPR);
   ctx.setTransform(DPR,0,0,DPR,0,0);
 }
 fit();
-addEventListener('resize', ()=>{fit();repositionBonk();});
-addEventListener('orientationchange', ()=>setTimeout(()=>{fit();repositionBonk();},300));
+addEventListener('resize',fit);
+addEventListener('orientationchange',()=>setTimeout(fit,300));
 
 // ===== Audio =====
 let muted=false,audioCtx;
