@@ -32,6 +32,13 @@
     .bonk{position:absolute;width:160px;display:none;pointer-events:none;z-index:25}
     .titleTop{position:absolute;top:20px;left:50%;transform:translateX(-50%);font-size:48px;font-weight:900;color:#fff;text-shadow:0 4px 8px rgba(0,0,0,.5);display:none;pointer-events:none;z-index:5}
     .tapToStart{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:28px;font-weight:800;color:#fff;text-shadow:0 2px 4px rgba(0,0,0,.6);pointer-events:none;z-index:30}
+
+    /* Mobile tweaks */
+    @media (max-width: 768px) {
+      .titleTop { font-size: 32px; }
+      .tapToStart { font-size: 20px; }
+      canvas { width: 95% !important; height: auto !important; }
+    }
   </style>
   <!-- PlayFab SDK -->
   <script src="https://download.playfab.com/PlayFabClientApi.js"></script>
@@ -61,6 +68,9 @@
 
 <script>
 (()=>{
+// === detect device ===
+const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+
 // === canvas & scaling ===
 const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
 const DPR=Math.max(1,Math.floor(window.devicePixelRatio||1));
@@ -76,13 +86,17 @@ function fit(){
   ctx.setTransform(DPR,0,0,DPR,0,0);
 }
 fit(); addEventListener('resize', ()=>{fit();requestAnimationFrame(repositionBonk);});
+window.addEventListener("orientationchange", () => { setTimeout(fit, 300); });
 
 // === audio ===
 let muted=false,audioCtx;
+function initAudio(){
+  if(!audioCtx) audioCtx=new(AudioContext||webkitAudioContext)();
+}
 function beep(f=880,d=0.05,t='sine',v=0.1){
   if(muted)return;
   try{
-    if(!audioCtx)audioCtx=new(AudioContext||webkitAudioContext)();
+    if(!audioCtx) return; // only after first tap
     const o=audioCtx.createOscillator(),g=audioCtx.createGain();
     o.type=t;o.frequency.value=f;g.gain.value=v;
     o.connect(g);g.connect(audioCtx.destination);
@@ -150,26 +164,34 @@ function spawnPipes(initial=false){
 }
 function flap(){if(state!=='playing')return;cat.vy=-FLAP;cat.flapTick=0.12;beep(520,0.05,'square',0.06);}
 
-// inputs
-addEventListener('keydown',e=>{
-  if(e.code==='Space'){
-    const hsVisible = document.getElementById('highscores').style.display !== 'none';
-    const nameInputFocused = document.activeElement === inputName;
-    if (hsVisible || nameInputFocused) return; // ignore space during popup or typing
+// === input handling (desktop vs mobile) ===
+if(isMobile){
+  canvas.addEventListener('touchstart', e=>{
+    initAudio(); e.preventDefault();
+    if(state==='dead'||state==='start'){ reset(); return; }
+    flap();
+  }, { passive:false });
+} else {
+  addEventListener('keydown', e=>{
+    if(e.code==='Space'){
+      const hsVisible = document.getElementById('highscores').style.display !== 'none';
+      const nameInputFocused = document.activeElement === inputName;
+      if(hsVisible || nameInputFocused) return;
+      e.preventDefault();
+      if(state==='playing'){ flap(); }
+    }
+  });
+  canvas.addEventListener('pointerdown', e=>{
+    initAudio(); e.preventDefault();
+    if(state==='dead'||state==='start'){ reset(); return; }
+    flap();
+  });
+}
 
-    e.preventDefault();
-    if(state==='playing'){ flap(); }
-  }
-});
-canvas.addEventListener('pointerdown',e=>{
-  e.preventDefault();
-  if(state==='dead'||state==='start'){ reset(); return; }
-  flap();
-},{passive:false});
 document.getElementById('btnMute').addEventListener('click',()=>{muted=!muted;document.getElementById('btnMute').textContent=muted?'🔈':'🔊'}); 
 btnRestart.addEventListener('click',()=>{reset();});
 
-// === logic ===
+// === game logic ===
 function step(dt){
   if(state!=='playing')return;
   cat.vy+=G*dt;cat.y+=cat.vy*dt;cat.rot=Math.atan2(cat.vy,PIPE_SPEED)*0.8;
