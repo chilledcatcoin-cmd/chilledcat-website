@@ -41,6 +41,8 @@
   .overlay.show{display:grid}
   .modal{background:linear-gradient(var(--bg1), var(--bg2));border:4px ridge var(--edge);border-radius:10px;padding:16px 18px;text-align:center;width:min(92vw,420px)}
   .good{color:var(--good)}.bad{color:var(--bad)}
+  /* Added for popup image */
+  .result-img{display:block;max-width:140px;margin:8px auto;border-radius:10px;box-shadow:0 4px 12px rgba(0,0,0,.6)}
   .footer{padding:8px 10px;text-align:center;font-size:12px;opacity:.9}
   .diag{padding:6px 10px;font-size:12px;opacity:.85}
   .diag b{color:#ffcc77}
@@ -78,17 +80,21 @@
       <div class="board-wrap">
         <div id="board" class="board" aria-label="Minesweeper board" role="grid"></div>
       </div>
-      <div class="footer">Controls: Left‑click/tap = reveal • Right‑click/long‑press = flag • Press <kbd>R</kbd> to restart.</div>
+      <div class="footer">Controls: Left-click/tap = reveal • Right-click/long-press = flag • Press <kbd>R</kbd> to restart.</div>
       <div id="diag" class="diag" style="display:none"></div>
     </div>
   </div>
+
   <div id="overlay" class="overlay" role="dialog" aria-modal="true">
     <div class="modal">
       <h2 id="resultTitle">You win!</h2>
+      <!-- Added image element for popup -->
+      <img id="resultImage" class="result-img" src="" alt="Chilled Cat" style="display:none;">
       <p id="resultBody">Nice and chilly.</p>
       <button class="btn" id="again">Play Again</button>
     </div>
   </div>
+
 <script>
 (function(){
   // ====== Sticker sources (with fallbacks & diagnostics) ======
@@ -125,7 +131,7 @@
   function updateDiag(){
     if(MISSING.length){
       DIAG.style.display = 'block';
-      DIAG.innerHTML = `⚠️ Some sticker images failed to load. <br><b>Missing</b>:<br><code>${MISSING.map(x=>escapeHtml(x)).join('<br>')}</code><br>Tip: check paths/casing on GitHub Pages (case‑sensitive). You can override stickers via <code>?stickers=URL1,URL2</code>.`;
+      DIAG.innerHTML = `⚠️ Some sticker images failed to load. <br><b>Missing</b>:<br><code>${MISSING.map(x=>escapeHtml(x)).join('<br>')}</code><br>Tip: check paths/casing on GitHub Pages (case-sensitive). You can override stickers via <code>?stickers=URL1,URL2</code>.`;
     } else {
       DIAG.style.display = 'none';
       DIAG.textContent='';
@@ -156,6 +162,7 @@
   const againBtn = document.getElementById('again');
   const resultTitle = document.getElementById('resultTitle');
   const resultBody = document.getElementById('resultBody');
+  const resultImage = document.getElementById('resultImage');
 
   // ====== Game state ======
   let cols=9, rows=9, mines=10;
@@ -219,7 +226,7 @@
 
   function updateTimer(){ timeEl.textContent = timer.toFixed(1); }
   function updateCounters(){ remainingEl.textContent = safeRemaining; flagsEl.textContent = flags; bestEl.textContent = bestTimeLabel(); }
-  function startTimer(){ if(running) return; running=true; const t0=performance.now(); function step(now){ timer += (now - (step.last||now))/1000; step.last=now; updateTimer(); if(running) raf=requestAnimationFrame(step); } raf=requestAnimationFrame(step); }
+  function startTimer(){ if(running) return; running=true; function step(now){ timer += (now - (step.last||now))/1000; step.last=now; updateTimer(); if(running) raf=requestAnimationFrame(step); } raf=requestAnimationFrame(step); }
   function stopTimer(){ running=false; cancelAnimationFrame(raf); }
 
   function reveal(r,c){
@@ -255,13 +262,23 @@
     cellEl.classList.add('mine'); cellEl.innerHTML='';
     const im = document.createElement('img'); im.className='mine-icon';
     // pick from verified AVAILABLE (falls back to data URI)
-    const pick = AVAILABLE[Math.floor(Math.random()*AVAILABLE.length)] || FALLBACK_DATA_URI;
+    const pick = (AVAILABLE.length ? AVAILABLE[(Math.random()*AVAILABLE.length)|0] : FALLBACK_DATA_URI);
     im.src = pick; im.alt='Chilled Cat';
     im.onerror = () => { cellEl.textContent='😺'; };
     cellEl.appendChild(im);
   }
 
-  function revealAllMines(){ for(const id of minesSet){ const [r,c]=id.split(',').map(Number); const el=at(r,c); if(!revealed[r][c]){ revealed[r][c]=true; el.classList.remove('hidden'); el.classList.add('revealed'); showMine(el); } } }
+  function revealAllMines(){
+    for(const id of minesSet){
+      const [r,c]=id.split(',').map(Number);
+      const el=at(r,c);
+      if(!revealed[r][c]){
+        revealed[r][c]=true;
+        el.classList.remove('hidden'); el.classList.add('revealed');
+        showMine(el);
+      }
+    }
+  }
   function at(r,c){ return boardEl.children[r*cols + c]; }
 
   function bestKey(){ let tag = diffSel.value; if(tag==='c') tag = `c_${cols}x${rows}x${mines}`; return `catsweeper_best_${tag}`; }
@@ -273,6 +290,13 @@
     resultTitle.textContent = win ? 'You win! 😺' : 'Boom! 🐾';
     resultTitle.className = win ? 'good' : 'bad';
     resultBody.textContent = win ? `Cleared in ${timer.toFixed(1)}s` : 'A horde of chilled cats overran the board!';
+
+    // Always show a chilled cat image in popup (win or boom)
+    const pick = (AVAILABLE.length ? AVAILABLE[(Math.random()*AVAILABLE.length)|0] : FALLBACK_DATA_URI);
+    resultImage.src = pick;
+    resultImage.style.display = 'block';
+    resultImage.onerror = () => { resultImage.style.display = 'none'; };
+
     if(win) { recordBest(); updateCounters(); }
     overlay.classList.add('show');
   }
@@ -280,15 +304,34 @@
   function newGame(){
     setDifficulty(diffSel.value);
     customWrap.style.display = diffSel.value==='c' ? 'inline-flex' : 'none';
-    resetState(); buildBoard(); updateCounters(); overlay.classList.remove('show');
+    resetState(); buildBoard(); updateCounters();
+    // Hide overlay & image for fresh start
+    resultImage.style.display = 'none';
+    overlay.classList.remove('show');
   }
 
   // Events: clicks, right-click, touch long-press
   boardEl.addEventListener('contextmenu', e=>{ e.preventDefault(); });
-  boardEl.addEventListener('mousedown', (e)=>{ const cell = e.target.closest('.cell'); if(!cell) return; const r=+cell.dataset.r,c=+cell.dataset.c; if(e.button===2) toggleFlag(r,c); else if(e.button===0) reveal(r,c); });
+  boardEl.addEventListener('mousedown', (e)=>{
+    const cell = e.target.closest('.cell'); if(!cell) return;
+    const r=+cell.dataset.r,c=+cell.dataset.c;
+    if(e.button===2) toggleFlag(r,c); else if(e.button===0) reveal(r,c);
+  });
   let touchTimer=null, touchCell=null;
-  boardEl.addEventListener('touchstart',(e)=>{ const cell = e.target.closest('.cell'); if(!cell) return; e.preventDefault(); touchCell = cell; touchTimer = setTimeout(()=>{ const r=+cell.dataset.r,c=+cell.dataset.c; toggleFlag(r,c); touchTimer=null; }, 420); }, {passive:false});
-  boardEl.addEventListener('touchend',(e)=>{ e.preventDefault(); const cell = touchCell; if(!cell) return; const r=+cell.dataset.r,c=+cell.dataset.c; if(touchTimer){ clearTimeout(touchTimer); touchTimer=null; reveal(r,c); } touchCell=null; }, {passive:false});
+  boardEl.addEventListener('touchstart',(e)=>{
+    const cell = e.target.closest('.cell'); if(!cell) return; e.preventDefault();
+    touchCell = cell;
+    touchTimer = setTimeout(()=>{
+      const r=+cell.dataset.r,c=+cell.dataset.c; toggleFlag(r,c); touchTimer=null;
+    }, 420);
+  }, {passive:false});
+  boardEl.addEventListener('touchend',(e)=>{
+    e.preventDefault();
+    const cell = touchCell; if(!cell) return;
+    const r=+cell.dataset.r,c=+cell.dataset.c;
+    if(touchTimer){ clearTimeout(touchTimer); touchTimer=null; reveal(r,c); }
+    touchCell=null;
+  }, {passive:false});
 
   newBtn.addEventListener('click', newGame);
   diffSel.addEventListener('change', newGame);

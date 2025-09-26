@@ -20,6 +20,8 @@
   .save-msg { margin-top:6px; color:#3cff87; display:none; font-weight:700; }
   .save-msg.show { display:block; }
 </style>
+<!-- ✅ PlayFab SDK -->
+<script src="https://download.playfab.com/PlayFabClientApi.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -69,10 +71,31 @@
     'files/stickers/premium_sticker1.webp',
     'files/stickers/premium_sticker2.webp',
     'files/stickers/premium_sticker3.webp',
-    'files/stickers/premium_sticker1.webp'
+    'files/stickers/premium_sticker4.webp'
   ];
   let stickerIndex=0;
   let submitted=false;
+
+  // ✅ PlayFab setup
+  PlayFab.settings.titleId = "112A41"; // your title ID
+
+  function loginPlayer(){
+    const customId = localStorage.getItem("ccc97_playfab_id") || ("cat_" + Math.random().toString(36).substring(2));
+    localStorage.setItem("ccc97_playfab_id", customId);
+    PlayFabClientSDK.LoginWithCustomID({
+      TitleId: PlayFab.settings.titleId,
+      CustomId: customId,
+      CreateAccount: true
+    }, function(result, error){
+      if(error) {
+        console.error("❌ Login failed:", error);
+      } else {
+        console.log("✅ Login success:", result);
+        loadScores(); // load leaderboard immediately after login
+      }
+    });
+  }
+  loginPlayer();
 
   // rotate sticker every 3s
   setInterval(()=>{
@@ -86,8 +109,8 @@
     x+=vx; y+=vy;
     if(x<0){x=0;vx*=-1;}
     if(y<0){y=0;vy*=-1;}
-    if(x>r.width-cat.width){x=r.width-cat.width;vx*=-1;}
-    if(y>r.height-cat.height){y=r.height-cat.height;vy*=-1;}
+    if(x>r.width-cat.offsetWidth){x=r.width-cat.offsetWidth;vx*=-1;}
+    if(y>r.height-cat.offsetHeight){y=r.height-cat.offsetHeight;vy*=-1;}
     cat.style.transform=`translate(${x}px,${y}px)`;
     timeLeft-=1/60;
     timeEl.textContent=Math.max(0,timeLeft).toFixed(1);
@@ -96,7 +119,7 @@
 
   function startGame(){
     score=0; scoreEl.textContent=0; timeLeft=30; overlay.classList.remove('show');
-    running=true; submitted=false; submitBtn.disabled=false; usernameInput.disabled=false; saveMsg.classList.remove('show'); saveMsg.textContent='Score saved!';
+    running=true; submitted=false; submitBtn.disabled=false; usernameInput.disabled=false; saveMsg.classList.remove('show');
     raf=requestAnimationFrame(tick);
   }
 
@@ -110,26 +133,61 @@
   cat.addEventListener('click',()=>{if(running){score++; scoreEl.textContent=score;}});
   startBtn.addEventListener('click',startGame);
   restartBtn.addEventListener('click',startGame);
+
+  // 📝 Submit score to PlayFab
   submitBtn.addEventListener('click',()=>{
-    if(submitted) return; // prevent multiple submissions
-    submitted=true;
-    submitBtn.disabled=true;
-    usernameInput.disabled=true;
-    const name=usernameInput.value.trim()||'Anon';
-    const entry={name,score};
-    const hs=JSON.parse(localStorage.getItem('ccc97_scores')||'[]');
-    hs.push(entry);
-    hs.sort((a,b)=>b.score-a.score);
-    localStorage.setItem('ccc97_scores',JSON.stringify(hs.slice(0,5)));
-    loadScores();
-    saveMsg.textContent='Score saved!';
-    saveMsg.classList.add('show');
+    if(submitted) return;
+    submitted = true;
+    submitBtn.disabled = true;
+    usernameInput.disabled = true;
+    const name = usernameInput.value.trim() || "Anon";
+
+    // Update display name
+    PlayFabClientSDK.UpdateUserTitleDisplayName({ DisplayName: name }, function(res, err){
+      if(err) console.error("Name update failed:", err);
+    });
+
+    // Save score
+    PlayFabClientSDK.UpdatePlayerStatistics({
+      Statistics: [{ StatisticName: "HighScore", Value: score }]
+    }, function(result, error){
+      if(error){
+        console.error("❌ Error saving score:", error);
+        saveMsg.textContent="❌ Error saving score!";
+        saveMsg.classList.add("show");
+      } else {
+        console.log("✅ Score saved:", result);
+        saveMsg.textContent="✅ Score submitted!";
+        saveMsg.classList.add("show");
+        loadScores();
+      }
+    });
   });
 
+  // 📝 Load leaderboard (top 5 only)
   function loadScores(){
-    const hs=JSON.parse(localStorage.getItem('ccc97_scores')||'[]');
-    highscoresList.innerHTML=hs.map(e=>`<li>${e.name}: ${e.score}</li>`).join('');
+    PlayFabClientSDK.GetLeaderboard({
+      StatisticName: "HighScore",
+      StartPosition: 0,
+      MaxResultsCount: 5
+    }, function(result, error){
+      if(error){
+        console.error("❌ Error loading leaderboard:", error);
+        highscoresList.innerHTML = "<li>⚠️ Could not load leaderboard</li>";
+      } else {
+        console.log("📊 Leaderboard data:", result);
+        const data = result.data.Leaderboard;
+        if(data.length === 0){
+          highscoresList.innerHTML = "<li>No scores yet — be the first!</li>";
+        } else {
+          highscoresList.innerHTML = data.map(e =>
+            `<li>${e.DisplayName || e.PlayFabId}: ${e.StatValue}</li>`
+          ).join('');
+        }
+      }
+    });
   }
+
 })();
 </script>
 </body>
