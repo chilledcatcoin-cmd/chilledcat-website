@@ -2,13 +2,21 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Chilled Flappy Cat — Tribute to Flappy Bird</title>
   <style>
     :root {--bg:#87ceeb;--ground:#7c5b3a;--grass:#7ed957;--pipe:#3cb043;--ui:#111;}
-    html,body{margin:0;height:100%;background:var(--bg);font-family:system-ui;color:var(--ui)}
+    html,body{
+      margin:0;height:100%;background:var(--bg);
+      font-family:system-ui;color:var(--ui);
+      overscroll-behavior:none;touch-action:none;
+    }
     .wrap{display:flex;justify-content:center;align-items:center;height:100%}
-    canvas{image-rendering:pixelated;image-rendering:crisp-edges;background:linear-gradient(#aee8ff,#87ceeb 60%,#79b2e9);border-radius:16px;box-shadow:0 20px 40px rgba(0,0,0,.2)}
+    canvas{image-rendering:pixelated;image-rendering:crisp-edges;
+      background:linear-gradient(#aee8ff,#87ceeb 60%,#79b2e9);
+      border-radius:16px;box-shadow:0 20px 40px rgba(0,0,0,.2)}
     .hud{position:fixed;inset:0;display:grid;place-items:start center;pointer-events:none}
     .topbar{pointer-events:auto;position:absolute;top:10px;right:10px;display:flex;gap:8px;align-items:center;background:rgba(255,255,255,.7);border-radius:999px;padding:6px 10px}
     .topbar .btn{border:0;background:#222;color:#fff;padding:6px 10px;border-radius:999px;font-weight:700;cursor:pointer}
@@ -23,12 +31,13 @@
     #saveStatus{margin-top:8px;font-size:13px;color:#555;display:none}
     .bonk{position:absolute;width:160px;display:none;pointer-events:none;z-index:25}
     .titleTop{position:absolute;top:20px;left:50%;transform:translateX(-50%);font-size:48px;font-weight:900;color:#fff;text-shadow:0 4px 8px rgba(0,0,0,.5);display:none;pointer-events:none;z-index:5}
+    .tapToStart{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:28px;font-weight:800;color:#fff;text-shadow:0 2px 4px rgba(0,0,0,.6);pointer-events:none;z-index:30}
   </style>
   <!-- PlayFab SDK -->
   <script src="https://download.playfab.com/PlayFabClientApi.js"></script>
 </head>
 <body>
-  <div class="wrap"><canvas id="game" width="480" height="720"></canvas></div>
+  <div class="wrap"><canvas id="game"></canvas></div>
   <div class="hud">
     <div class="topbar">
       <button class="btn" id="btnMute">🔊</button>
@@ -47,33 +56,26 @@
     </div>
     <img id="bonkImg" src="files/images/bonk.png" class="bonk" alt="Bonk/Ouch">
     <div id="titleTop" class="titleTop">CHILLED FLAPPY CAT</div>
+    <div id="tapToStart" class="tapToStart">👉 Tap to Start</div>
   </div>
 
 <script>
 (()=>{
-// === helpers ===
-function repositionBonk(){
-  try{
-    const hsEl = document.getElementById('highscores');
-    if (!hsEl || hsEl.style.display === 'none') return;
-    const rect = hsEl.getBoundingClientRect();
-    const scrollY = window.scrollY || document.documentElement.scrollTop;
-    const bonkH = bonkImg.getBoundingClientRect().height || 160;
-    const gap = 20;
-
-    bonkImg.style.position = 'absolute';
-    bonkImg.style.left = (rect.left + rect.width/2) + 'px';
-    bonkImg.style.top  = (scrollY + rect.top - bonkH - gap) + 'px';
-    bonkImg.style.transform = 'translateX(-50%)';
-  } catch(e){
-    console.error('repositionBonk error:', e);
-  }
-}
-
-// === canvas + scaling ===
+// === canvas & scaling ===
 const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
 const DPR=Math.max(1,Math.floor(window.devicePixelRatio||1));
-function fit(){const vw=Math.min(window.innerWidth-24,520);const tw=Math.min(520,Math.max(360,vw));const th=tw*1.5;canvas.style.width=tw+'px';canvas.style.height=th+'px';canvas.width=Math.floor(tw*DPR);canvas.height=Math.floor(th*DPR);ctx.setTransform(DPR,0,0,DPR,0,0);}fit();addEventListener('resize',()=>{fit();requestAnimationFrame(repositionBonk);});
+function fit(){
+  const vw = window.innerWidth - 24;
+  const vh = window.innerHeight - 24;
+  const tw = Math.min(520, Math.max(320, vw));
+  const th = Math.min(900, vh);
+  canvas.style.width = tw + 'px';
+  canvas.style.height = th + 'px';
+  canvas.width = Math.floor(tw * DPR);
+  canvas.height = Math.floor(th * DPR);
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+fit(); addEventListener('resize', ()=>{fit();requestAnimationFrame(repositionBonk);});
 
 // === audio ===
 let muted=false,audioCtx;
@@ -94,9 +96,7 @@ PlayFab.settings.titleId=playFabTitleId;
 function loginPlayFab(){
   const id=localStorage.getItem("cc_flappy_playfab_id")||crypto.randomUUID();
   localStorage.setItem("cc_flappy_playfab_id",id);
-  PlayFabClientSDK.LoginWithCustomID({TitleId:playFabTitleId,CustomId:id,CreateAccount:true},(res,err)=>{
-    if(res&&res.data){console.log("PlayFab login OK:",res.data.PlayFabId);} else {console.error("PlayFab login fail:",err);}
-  });
+  PlayFabClientSDK.LoginWithCustomID({TitleId:playFabTitleId,CustomId:id,CreateAccount:true},()=>{},()=>{});
 }
 loginPlayFab();
 
@@ -107,6 +107,7 @@ const inputName=document.getElementById('playerName');
 const btnSubmit=document.getElementById('btnSubmit');
 const btnRestart=document.getElementById('btnRestart');
 const saveStatus=document.getElementById('saveStatus');
+const tapToStart=document.getElementById('tapToStart');
 
 // === game vars ===
 const G=1200,FLAP=420,PIPE_GAP_MIN=150,PIPE_GAP_MAX=210,PIPE_W=70,PIPE_SPACING=220,PIPE_SPEED=160,GROUND_H=60;
@@ -116,30 +117,144 @@ const bonkVariants=['files/images/bonk.png','files/images/ouch.png','files/image
 const cat={x:120,y:200,vy:0,r:28,rot:0,flapTick:0};
 const pipes=[];
 
+// === helpers ===
+function repositionBonk(){
+  const hsEl=document.getElementById('highscores');
+  if (!hsEl || hsEl.style.display==='none') return;
+  const rect=hsEl.getBoundingClientRect();
+  const scrollY=window.scrollY||document.documentElement.scrollTop;
+  const bonkH=bonkImg.getBoundingClientRect().height||160;
+  bonkImg.style.left=(rect.left+rect.width/2)+'px';
+  bonkImg.style.top=(scrollY+rect.top-bonkH-20)+'px';
+  bonkImg.style.transform='translateX(-50%)';
+}
+
 // === core ===
-function reset(){score=0;updateScore();state='playing';cat.x=120;cat.y=canvas.height/2-60;cat.vy=0;cat.rot=0;cat.flapTick=0;pipes.length=0;spawnPipes(true);bonkImg.style.display='none';document.getElementById('highscores').style.display='none';titleTop.style.display='none';}
+function reset(){
+  score=0;updateScore();
+  state='playing';
+  tapToStart.style.display='none';
+  cat.x=120;cat.y=canvas.height/2-60;cat.vy=0;cat.rot=0;cat.flapTick=0;
+  pipes.length=0;spawnPipes(true);
+  bonkImg.style.display='none';
+  document.getElementById('highscores').style.display='none';
+  titleTop.style.display='none';
+}
 function updateScore(){document.getElementById('score').textContent=score;}
-function spawnPipes(initial=false){const bx=initial?canvas.width+100:Math.max(canvas.width+10,(pipes.at(-1)?.x||0)+PIPE_SPACING);const gap=PIPE_GAP_MIN+Math.random()*(PIPE_GAP_MAX-PIPE_GAP_MIN);const m=80;const th=m+Math.random()*(canvas.height-GROUND_H-m*2-gap);pipes.push({x:bx,w:PIPE_W,top:th,gap,passed:false});}
+function spawnPipes(initial=false){
+  const bx=initial?canvas.width+100:Math.max(canvas.width+10,(pipes.at(-1)?.x||0)+PIPE_SPACING);
+  const gap=PIPE_GAP_MIN+Math.random()*(PIPE_GAP_MAX-PIPE_GAP_MIN);
+  const m=80;
+  const th=m+Math.random()*(canvas.height-GROUND_H-m*2-gap);
+  pipes.push({x:bx,w:PIPE_W,top:th,gap,passed:false});
+}
 function flap(){if(state!=='playing')return;cat.vy=-FLAP;cat.flapTick=0.12;beep(520,0.05,'square',0.06);}
 
-addEventListener('keydown',e=>{if(e.code==='Space'){e.preventDefault();if(state==='dead'||state==='start'){ reset(); return; }flap();}});
-canvas.addEventListener('pointerdown',e=>{e.preventDefault();if(state==='dead'||state==='start'){ reset(); return; }flap();});
-document.getElementById('btnMute').addEventListener('click',()=>{muted=!muted;document.getElementById('btnMute').textContent=muted?'🔈':'🔊'}); btnRestart.addEventListener('click',()=>{reset();});
+// inputs
+addEventListener('keydown',e=>{
+  if(e.code==='Space'){
+    const hsVisible = document.getElementById('highscores').style.display !== 'none';
+    const nameInputFocused = document.activeElement === inputName;
+    if (hsVisible || nameInputFocused) return; // ignore space during popup or typing
 
-// === game logic ===
-function step(dt){if(state!=='playing')return;cat.vy+=G*dt;cat.y+=cat.vy*dt;cat.rot=Math.atan2(cat.vy,PIPE_SPEED)*0.8;if(cat.flapTick>0)cat.flapTick-=dt;for(const p of pipes)p.x-=PIPE_SPEED*dt;if(!pipes.length||(canvas.width-(pipes.at(-1)?.x||0))>PIPE_SPACING)spawnPipes();while(pipes.length&&pipes[0].x+pipes[0].w<-50)pipes.shift();for(const p of pipes){if(!p.passed&&cat.x>p.x+p.w){p.passed=true;score++;updateScore();beep(800,0.04,'triangle',0.06);}if(circleRect(cat.x,cat.y,cat.r,p.x,0,p.w,p.top)||circleRect(cat.x,cat.y,cat.r,p.x,p.top+p.gap,p.w,canvas.height-GROUND_H-(p.top+p.gap))){die();}}if(cat.y+cat.r>canvas.height-GROUND_H||cat.y-cat.r<0)die();}
-function die(){if(state==='dead')return;state='dead';beep(220,0.2,'sawtooth',0.08);const src=bonkVariants[Math.floor(Math.random()*bonkVariants.length)];bonkImg.src=src;bonkImg.style.display='block';document.getElementById('highscores').style.display='block';renderHighscores();titleTop.style.display='block';requestAnimationFrame(repositionBonk);}
+    e.preventDefault();
+    if(state==='playing'){ flap(); }
+  }
+});
+canvas.addEventListener('pointerdown',e=>{
+  e.preventDefault();
+  if(state==='dead'||state==='start'){ reset(); return; }
+  flap();
+},{passive:false});
+document.getElementById('btnMute').addEventListener('click',()=>{muted=!muted;document.getElementById('btnMute').textContent=muted?'🔈':'🔊'}); 
+btnRestart.addEventListener('click',()=>{reset();});
+
+// === logic ===
+function step(dt){
+  if(state!=='playing')return;
+  cat.vy+=G*dt;cat.y+=cat.vy*dt;cat.rot=Math.atan2(cat.vy,PIPE_SPEED)*0.8;
+  if(cat.flapTick>0)cat.flapTick-=dt;
+  for(const p of pipes)p.x-=PIPE_SPEED*dt;
+  if(!pipes.length||(canvas.width-(pipes.at(-1)?.x||0))>PIPE_SPACING)spawnPipes();
+  while(pipes.length&&pipes[0].x+pipes[0].w<-50)pipes.shift();
+  for(const p of pipes){
+    if(!p.passed&&cat.x>p.x+p.w){p.passed=true;score++;updateScore();beep(800,0.04,'triangle',0.06);}
+    if(circleRect(cat.x,cat.y,cat.r,p.x,0,p.w,p.top)||circleRect(cat.x,cat.y,cat.r,p.x,p.top+p.gap,p.w,canvas.height-GROUND_H-(p.top+p.gap))){die();}
+  }
+  if(cat.y+cat.r>canvas.height-GROUND_H||cat.y-cat.r<0)die();
+}
+function die(){
+  if(state==='dead')return;
+  state='dead';
+  beep(220,0.2,'sawtooth',0.08);
+  const src=bonkVariants[Math.floor(Math.random()*bonkVariants.length)];
+  bonkImg.src=src;bonkImg.style.display='block';
+  document.getElementById('highscores').style.display='block';
+  renderHighscores();
+  titleTop.style.display='block';
+  requestAnimationFrame(repositionBonk);
+}
 
 // === high scores ===
-btnSubmit.addEventListener('click',()=>{const name=inputName.value.trim()||"Cat";inputName.value="";btnSubmit.disabled = true;btnSubmit.style.opacity = "0.6";saveStatus.style.display = "block";saveStatus.textContent = "Saving…";PlayFabClientSDK.UpdateUserTitleDisplayName({ DisplayName:name },()=>{},()=>{});PlayFabClientSDK.GetPlayerStatistics({}, (res, err) => {if(res && res.data){let currentBest=0;res.data.Statistics.forEach(s=>{if(s.StatisticName==="HighScore") currentBest=s.Value;});if(score>currentBest){PlayFabClientSDK.UpdatePlayerStatistics({Statistics:[{StatisticName:"HighScore",Value:score}]},()=>{saveStatus.textContent = "✅ Score saved!";setTimeout(()=>{saveStatus.style.display="none";btnSubmit.disabled = false;btnSubmit.style.opacity = "1";renderHighscores();},1000);},(e)=>{saveStatus.textContent = "❌ Error saving score";btnSubmit.disabled = false;btnSubmit.style.opacity = "1";});} else {saveStatus.textContent = "No new high score";setTimeout(()=>{saveStatus.style.display="none";btnSubmit.disabled = false;btnSubmit.style.opacity = "1";renderHighscores();},1000);}} else {saveStatus.textContent = "❌ Error fetching stats";btnSubmit.disabled = false;btnSubmit.style.opacity = "1";}});});
-function renderHighscores(){const list=document.getElementById('hslist');list.innerHTML='';const req={StatisticName:"HighScore",StartPosition:0,MaxResultsCount:5};PlayFabClientSDK.GetLeaderboard(req,(res,err)=>{if(res&&res.data){res.data.Leaderboard.forEach(e=>{const li=document.createElement('li');li.textContent=`${e.DisplayName||e.PlayFabId}: ${e.StatValue}`;list.appendChild(li);});} else {console.error("PlayFab leaderboard error:",err);}repositionBonk();});}
+btnSubmit.addEventListener('click',()=>{
+  const name=inputName.value.trim()||"Cat";
+  inputName.value="";
+  btnSubmit.disabled=true;
+  btnSubmit.style.opacity="0.6";
+  saveStatus.style.display="block";
+  saveStatus.textContent="Saving…";
+  PlayFabClientSDK.UpdateUserTitleDisplayName({ DisplayName:name },()=>{},()=>{});
+  PlayFabClientSDK.GetPlayerStatistics({}, (res, err) => {
+    if(res&&res.data){
+      let currentBest=0;
+      res.data.Statistics.forEach(s=>{if(s.StatisticName==="HighScore") currentBest=s.Value;});
+      if(score>currentBest){
+        PlayFabClientSDK.UpdatePlayerStatistics({Statistics:[{StatisticName:"HighScore",Value:score}]},
+          ()=>{saveStatus.textContent="✅ Score saved!";setTimeout(()=>{saveStatus.style.display="none";btnSubmit.disabled=false;btnSubmit.style.opacity="1";renderHighscores();},1000);},
+          ()=>{saveStatus.textContent="❌ Error saving score";btnSubmit.disabled=false;btnSubmit.style.opacity="1";}
+        );
+      } else {
+        saveStatus.textContent="No new high score";
+        setTimeout(()=>{saveStatus.style.display="none";btnSubmit.disabled=false;btnSubmit.style.opacity="1";renderHighscores();},1000);
+      }
+    } else {
+      saveStatus.textContent="❌ Error fetching stats";
+      btnSubmit.disabled=false;btnSubmit.style.opacity="1";
+    }
+  });
+});
+function renderHighscores(){
+  const list=document.getElementById('hslist');list.innerHTML='';
+  const req={StatisticName:"HighScore",StartPosition:0,MaxResultsCount:5};
+  PlayFabClientSDK.GetLeaderboard(req,(res)=>{
+    if(res&&res.data){
+      if(res.data.Leaderboard.length===0){
+        const li=document.createElement('li');li.textContent="No scores yet";list.appendChild(li);
+      } else {
+        res.data.Leaderboard.forEach(e=>{
+          const li=document.createElement('li');
+          li.textContent=`${e.DisplayName||e.PlayFabId}: ${e.StatValue}`;
+          list.appendChild(li);
+        });
+      }
+    } else {
+      const li=document.createElement('li');li.textContent="Error loading leaderboard";list.appendChild(li);
+    }
+    repositionBonk();
+  });
+}
 
-// === drawing ===
+// === draw ===
 function circleRect(cx,cy,cr,rx,ry,rw,rh){const tx=Math.max(rx,Math.min(cx,rx+rw)),ty=Math.max(ry,Math.min(cy,ry+rh));const dx=cx-tx,dy=cy-ty;return dx*dx+dy*dy<=cr*cr;}
 function draw(){ctx.clearRect(0,0,canvas.width,canvas.height);for(const p of pipes)drawPipe(p);ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--grass');ctx.fillRect(0,canvas.height-GROUND_H,canvas.width,20);ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--ground');ctx.fillRect(0,canvas.height-GROUND_H+20,canvas.width,GROUND_H-20);ctx.save();ctx.translate(cat.x,cat.y);ctx.rotate(cat.rot);if(catImgReady){const s=72;ctx.drawImage(catImg,-s/2,-s/2,s,s);}else{ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(0,0,28,0,Math.PI*2);ctx.fill();}ctx.restore();if(state==='playing'){ctx.fillStyle='rgba(255,255,255,.85)';ctx.strokeStyle='rgba(0,0,0,.25)';ctx.lineWidth=6;ctx.font='900 56px system-ui';ctx.textAlign='center';ctx.strokeText(String(score),canvas.width/2,90);ctx.fillText(String(score),canvas.width/2,90);}}
 function drawPipe(p){ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--pipe');ctx.fillRect(p.x,0,p.w,p.top);ctx.fillRect(p.x-4,p.top-16,p.w+8,16);const by=p.top+p.gap;ctx.fillRect(p.x,by,p.w,canvas.height-GROUND_H-by);ctx.fillRect(p.x-4,by,p.w+8,16);}
 function loop(t){const now=t/1000,dt=tPrev?Math.min(0.05,now-tPrev):0;tPrev=now;if(state==='playing'){acc+=dt;while(acc>=dtFixed){step(dtFixed);acc-=dtFixed;}}draw();requestAnimationFrame(loop);}
-requestAnimationFrame(loop);state='start';titleTop.style.display='block';
+requestAnimationFrame(loop);
+
+// === start state ===
+state='start';
+tapToStart.style.display='block';
+titleTop.style.display='block';
 })();
 </script>
 </body>
