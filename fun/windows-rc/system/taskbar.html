@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      margin: 0;
+      background: #c0c0c0;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      font-family: sans-serif;
+      font-size: 14px;
+    }
+    #start-btn {
+      background: #e0e0e0;
+      border: 2px outset #fff;
+      padding: 5px 10px;
+      margin-left: 5px;
+      cursor: pointer;
+    }
+    #start-btn:active {
+      border: 2px inset #fff;
+    }
+  </style>
+</head>
+<body>
+  <div id="start-btn">Start</div>
+
+  <script>
+    const btn = document.getElementById("start-btn");
+    btn.addEventListener("click", () => {
+      // Tell parent window to toggle start menu
+      parent.postMessage("toggle-startmenu", "*");
+    });
+  </script>
+</body>
+</html>

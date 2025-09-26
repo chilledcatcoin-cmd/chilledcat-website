@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Windows RC Boot</title>
+  <style>
+    body {
+      margin: 0;
+      background: #000;
+      color: #00ff00;
+      font-family: "Courier New", monospace;
+      font-size: 18px;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .hidden { display: none !important; }
+
+    .cursor {
+      display: inline-block;
+      width: 10px;
+      background: #00ff00;
+      margin-left: 5px;
+      animation: blink 1s step-start infinite;
+    }
+
+    @keyframes blink { 50% { background: transparent; } }
+
+    #dos-screen { padding: 20px; }
+
+    .boot-logo { max-width: 600px; width: 80%; animation: fadeIn 2s ease; }
+
+    .progress-bar {
+      margin-top: 30px;
+      width: 400px;
+      max-width: 80%;
+      height: 20px;
+      border: 2px solid #fff;
+      background: #111;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .progress {
+      background: linear-gradient(90deg, #00aaff, #66ddff);
+      width: 0%;
+      height: 100%;
+    }
+
+    @keyframes load { from { width: 0%; } to { width: 100%; } }
+    @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+    .fade-out { animation: fadeOut 1s forwards; }
+
+    #boot-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+  </style>
+</head>
+<body>
+  <div id="dos-screen">
+    <p>Windows RC Setup<br>
+    Select partition to boot from:<br><br>
+    [1] C:\Windows RC (Really Chill Edition)<br>
+    [2] D:\Data<br>
+    [3] E:\Chill Drive<br><br>
+    Press ENTER to boot from partition 1...</p>
+    <span class="cursor"></span>
+  </div>
+
+  <div id="boot-screen" class="hidden">
+    <img src="./media/loading.png" alt="Windows RC Loading" class="boot-logo">
+    <div class="progress-bar">
+      <div class="progress"></div>
+    </div>
+  </div>
+
+  <audio id="startup-sound">
+    <source src="./media/startup.mp3" type="audio/mpeg">
+  </audio>
+
+  <script>
+    const dosScreen = document.getElementById("dos-screen");
+    const bootScreen = document.getElementById("boot-screen");
+    const audio = document.getElementById("startup-sound");
+    const progress = document.querySelector(".progress");
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        dosScreen.classList.add("hidden");
+        bootScreen.classList.remove("hidden");
+
+        audio.play();
+        progress.style.animation = "load 5s linear forwards";
+
+        setTimeout(() => {
+          document.body.classList.add("fade-out");
+          setTimeout(() => { window.location.href = "desktop.html"; }, 1000);
+        }, 6000);
+      }
+    });
+  </script>
+</body>
+</html>
