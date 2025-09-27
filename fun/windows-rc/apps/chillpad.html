@@ -2,14 +2,18 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Chilled Notepad</title>
+<title>Chillpad</title>
 <style>
-  body {
+  html, body {
+    height: 100%;
     margin: 0;
-    background: #c0c0c0;
+    padding: 0;
+  }
+
+  body {
+    background: #c0c0c0; /* Win95 grey */
     font-family: "MS Sans Serif", sans-serif;
     font-size: 14px;
-    height: 100%;
     display: flex;
     flex-direction: column;
     position: relative;
@@ -23,6 +27,7 @@
     display: flex;
     gap: 12px;
     font-size: 13px;
+    flex-shrink: 0;
   }
   #menubar span { cursor: pointer; }
   #menubar span:hover { text-decoration: underline; }
@@ -30,29 +35,32 @@
   /* Text area */
   #editor {
     flex: 1;
+    width: 100%;
+    background: #fff;
+    margin: 0;
     padding: 6px;
     border: none;
-    resize: none;
     outline: none;
+    resize: none;
+    box-sizing: border-box;
     font-family: "Courier New", monospace;
     font-size: 14px;
-    background: #fff;
     color: #000;
   }
 
   /* Cat Assistant */
   #assistant {
-    position: absolute;
+    position: fixed;
     bottom: 20px;
     right: 20px;
-    width: 120px;
+    width: 160px;
     text-align: center;
     font-size: 12px;
     color: #000;
-    display: none;
     cursor: grab;
     user-select: none;
     animation: fadeIn 0.5s ease-in-out;
+    z-index: 9999;
   }
   #assistant:active { cursor: grabbing; }
 
@@ -60,7 +68,17 @@
     width: 64px;
     height: 64px;
     image-rendering: pixelated;
+    display: block;
+    margin: 0 auto;
+    user-drag: none;
+    -webkit-user-drag: none;
+    -moz-user-select: none;
+    -webkit-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    pointer-events: none; /* so clicks go to container */
   }
+
   #assistant-bubble {
     background: #ffffcc;
     border: 1px solid #808080;
@@ -69,6 +87,28 @@
     font-family: "MS Sans Serif", sans-serif;
     font-size: 12px;
     box-shadow: 2px 2px #404040;
+  }
+
+  /* Options menu */
+  #assistant-options {
+    background: #f0f0f0;
+    border: 1px solid #808080;
+    display: none;
+    margin-bottom: 4px;
+    box-shadow: 2px 2px #404040;
+  }
+  #assistant-options button {
+    display: block;
+    width: 100%;
+    border: none;
+    background: #f0f0f0;
+    padding: 3px;
+    font-size: 12px;
+    text-align: left;
+    cursor: pointer;
+  }
+  #assistant-options button:hover {
+    background: #c0c0c0;
   }
 
   @keyframes fadeIn {
@@ -91,16 +131,23 @@
 
   <!-- Chilled Cat Assistant -->
   <div id="assistant">
-    <div id="assistant-bubble">Need some chill help?</div>
-    <img src="../media/cat_assistant.png" alt="Chilled Cat Assistant">
+    <div id="assistant-bubble">Welcome to Chillpad 😸</div>
+    <div id="assistant-options">
+      <button onclick="giveTip()">💡 Give me a tip</button>
+      <button onclick="tellJoke()">😂 Tell me a joke</button>
+      <button onclick="motivateMe()">🔥 Motivate me</button>
+    </div>
+    <img id="assistant-img" src="../media/icons/app_chillpad.gif" alt="Chilled Cat Assistant">
   </div>
 
 <script>
   const editor=document.getElementById("editor");
   const assistant=document.getElementById("assistant");
   const bubble=document.getElementById("assistant-bubble");
+  const assistantImg=document.getElementById("assistant-img");
+  const options=document.getElementById("assistant-options");
 
-  // Example menus
+  // Menu actions
   function newFile(){
     if(confirm("Clear the text?")) editor.value="";
     showAssistant("Fresh start, nice and chill 😸");
@@ -112,8 +159,11 @@
   // Show cat assistant with a message
   function showAssistant(msg){
     bubble.textContent=msg;
-    assistant.style.display="block";
-    setTimeout(()=>assistant.style.display="none",5000); // auto hide after 5s
+    // restart GIF animation by resetting src
+    const src = assistantImg.src;
+    assistantImg.src = "";
+    assistantImg.offsetHeight; // force reflow
+    assistantImg.src = src;
   }
 
   // Easter egg: trigger the cat when user types "cat"
@@ -123,21 +173,33 @@
     }
   });
 
-  // Make assistant draggable
+  // Make assistant draggable but prevent off-screen
   let drag=false, offsetX=0, offsetY=0;
   assistant.addEventListener("mousedown",(e)=>{
-    drag=true;
-    offsetX=e.clientX - assistant.offsetLeft;
-    offsetY=e.clientY - assistant.offsetTop;
-    document.addEventListener("mousemove",moveAssistant);
-    document.addEventListener("mouseup",stopDrag);
+    // Only start dragging if not clicking options area
+    if (e.target.id === "assistant-img" || e.target.id === "assistant") {
+      drag=true;
+      offsetX=e.clientX - assistant.offsetLeft;
+      offsetY=e.clientY - assistant.offsetTop;
+      document.addEventListener("mousemove",moveAssistant);
+      document.addEventListener("mouseup",stopDrag);
+    }
   });
 
   function moveAssistant(e){
     if(drag){
-      assistant.style.left=(e.clientX-offsetX)+"px";
-      assistant.style.top=(e.clientY-offsetY)+"px";
-      assistant.style.bottom=""; // remove bottom anchor so it can float freely
+      let newX = e.clientX - offsetX;
+      let newY = e.clientY - offsetY;
+      const rect = assistant.getBoundingClientRect();
+      const maxX = window.innerWidth - rect.width;
+      const maxY = window.innerHeight - rect.height;
+      if (newX < 0) newX = 0;
+      if (newY < 0) newY = 0;
+      if (newX > maxX) newX = maxX;
+      if (newY > maxY) newY = maxY;
+      assistant.style.left=newX+"px";
+      assistant.style.top=newY+"px";
+      assistant.style.bottom=""; // free-floating once moved
       assistant.style.right="";
     }
   }
@@ -145,6 +207,48 @@
     drag=false;
     document.removeEventListener("mousemove",moveAssistant);
     document.removeEventListener("mouseup",stopDrag);
+  }
+
+  // Toggle options when clicking the assistant container
+  assistant.addEventListener("click",(e)=>{
+    // Only toggle menu if clicked on cat itself (not buttons)
+    if (e.target.id === "assistant-img" || e.target.id === "assistant-bubble") {
+      options.style.display = options.style.display === "block" ? "none" : "block";
+    }
+  });
+
+  // Functions for options
+  const tips = [
+    "Stay hydrated 🥤",
+    "Stretch your paws 🐾",
+    "Remember to save your work 💾",
+    "Keep it chill 😎"
+  ];
+  const jokes = [
+    "Why did the cat sit on the computer? To keep an eye on the mouse.",
+    "I'm paw-sitive you'll finish your work soon 😸",
+    "Don't worry, be furry!"
+  ];
+  const motivators = [
+    "You got this! 🐱🔥",
+    "Stay cool and keep typing ✨",
+    "Every great story starts with one chill line 😎"
+  ];
+
+  function giveTip(){
+    const msg=tips[Math.floor(Math.random()*tips.length)];
+    showAssistant(msg);
+    options.style.display="none";
+  }
+  function tellJoke(){
+    const msg=jokes[Math.floor(Math.random()*jokes.length)];
+    showAssistant(msg);
+    options.style.display="none";
+  }
+  function motivateMe(){
+    const msg=motivators[Math.floor(Math.random()*motivators.length)];
+    showAssistant(msg);
+    options.style.display="none";
   }
 </script>
 </body>
