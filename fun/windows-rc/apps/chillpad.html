@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Chilled Notepad</title>
+<style>
+  body {
+    margin: 0;
+    background: #c0c0c0;
+    font-family: "MS Sans Serif", sans-serif;
+    font-size: 14px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+
+  /* Menu bar */
+  #menubar {
+    background: #dcdcdc;
+    border-bottom: 2px solid #808080;
+    padding: 2px 4px;
+    display: flex;
+    gap: 12px;
+    font-size: 13px;
+  }
+  #menubar span { cursor: pointer; }
+  #menubar span:hover { text-decoration: underline; }
+
+  /* Text area */
+  #editor {
+    flex: 1;
+    padding: 6px;
+    border: none;
+    resize: none;
+    outline: none;
+    font-family: "Courier New", monospace;
+    font-size: 14px;
+    background: #fff;
+    color: #000;
+  }
+
+  /* Cat Assistant */
+  #assistant {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    width: 120px;
+    text-align: center;
+    font-size: 12px;
+    color: #000;
+    display: none;
+    cursor: grab;
+    user-select: none;
+    animation: fadeIn 0.5s ease-in-out;
+  }
+  #assistant:active { cursor: grabbing; }
+
+  #assistant img {
+    width: 64px;
+    height: 64px;
+    image-rendering: pixelated;
+  }
+  #assistant-bubble {
+    background: #ffffcc;
+    border: 1px solid #808080;
+    padding: 4px;
+    margin-bottom: 4px;
+    font-family: "MS Sans Serif", sans-serif;
+    font-size: 12px;
+    box-shadow: 2px 2px #404040;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
+</head>
+<body>
+  <!-- Menu bar -->
+  <div id="menubar">
+    <span onclick="newFile()">File</span>
+    <span onclick="editMenu()">Edit</span>
+    <span onclick="viewMenu()">View</span>
+    <span onclick="helpMenu()">Help</span>
+  </div>
+
+  <!-- Editor -->
+  <textarea id="editor" spellcheck="false"></textarea>
+
+  <!-- Chilled Cat Assistant -->
+  <div id="assistant">
+    <div id="assistant-bubble">Need some chill help?</div>
+    <img src="../media/cat_assistant.png" alt="Chilled Cat Assistant">
+  </div>
+
+<script>
+  const editor=document.getElementById("editor");
+  const assistant=document.getElementById("assistant");
+  const bubble=document.getElementById("assistant-bubble");
+
+  // Example menus
+  function newFile(){
+    if(confirm("Clear the text?")) editor.value="";
+    showAssistant("Fresh start, nice and chill 😸");
+  }
+  function editMenu(){ showAssistant("Try Ctrl+C and Ctrl+V, they’re classics!"); }
+  function viewMenu(){ showAssistant("Looking good. Keep it chill."); }
+  function helpMenu(){ showAssistant("Meow! I'm here to chill while you write."); }
+
+  // Show cat assistant with a message
+  function showAssistant(msg){
+    bubble.textContent=msg;
+    assistant.style.display="block";
+    setTimeout(()=>assistant.style.display="none",5000); // auto hide after 5s
+  }
+
+  // Easter egg: trigger the cat when user types "cat"
+  editor.addEventListener("input",()=>{
+    if(editor.value.toLowerCase().includes("cat")){
+      showAssistant("You summoned meow! 🐾");
+    }
+  });
+
+  // Make assistant draggable
+  let drag=false, offsetX=0, offsetY=0;
+  assistant.addEventListener("mousedown",(e)=>{
+    drag=true;
+    offsetX=e.clientX - assistant.offsetLeft;
+    offsetY=e.clientY - assistant.offsetTop;
+    document.addEventListener("mousemove",moveAssistant);
+    document.addEventListener("mouseup",stopDrag);
+  });
+
+  function moveAssistant(e){
+    if(drag){
+      assistant.style.left=(e.clientX-offsetX)+"px";
+      assistant.style.top=(e.clientY-offsetY)+"px";
+      assistant.style.bottom=""; // remove bottom anchor so it can float freely
+      assistant.style.right="";
+    }
+  }
+  function stopDrag(){
+    drag=false;
+    document.removeEventListener("mousemove",moveAssistant);
+    document.removeEventListener("mouseup",stopDrag);
+  }
+</script>
+</body>
+</html>
