@@ -1,0 +1,18 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Shutdown</title></head>
+<body style='background:black;color:orange;text-align:center;padding-top:20%'>
+<img src='../media/loading.png' width='200'><div style='color:skyblue'>Windows RC — Really Chill Edition</div>
+<div>Please wait while your computer shuts down.</div>
+<audio id='sd'><source src='./media/shutdown.mp3' type='audio/mpeg'></audio>
+<script>
+  const params = new URLSearchParams(window.location.search);
+  const next = params.get("next");
+
+  setTimeout(()=>{
+    if(next==="safe"){
+      document.getElementById("message").textContent="It is now safe to turn off your computer";
+    } else if(next){
+      window.location.href = next;  // ✅ loads index.html if requested
+    }
+  }, 4000);
+</script>
+</body></html>

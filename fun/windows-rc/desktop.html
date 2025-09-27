@@ -1,88 +1,210 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Windows RC Desktop</title>
-  <style>
-    body {
-      margin: 0;
-      background: #008080;
-      height: 100vh;
-      overflow: hidden;
-      font-family: sans-serif;
-      color: white;
-    }
+<meta charset="UTF-8">
+<title>Windows RC Desktop</title>
+<style>
+  body {
+    margin: 0;
+    background: url('./media/wallpaper.png') center/cover no-repeat;
+    height: 100vh;
+    overflow: hidden;
+    font-family: sans-serif;
+    color: white;
+  }
+  #desktop-area { width: 100%; height: calc(100% - 40px); position: relative; }
+  .icon { position: absolute; width: 64px; text-align: center; font-size: 12px; user-select: none; cursor: default; }
+  .icon img { width: 32px; height: 32px; display: block; margin: 0 auto 4px; image-rendering: pixelated; }
+  iframe { border: none; }
 
-    #desktop-area {
-      width: 100%;
-      height: calc(100% - 40px);
-      position: relative;
-    }
+  /* Taskbar */
+  #taskbar { position: absolute; bottom: 0; left: 0; width: 100%; height: 40px; display: flex; align-items: center; background:#c0c0c0; z-index: 1000; }
+  #start-btn {
+    width: 90px; height: 30px; margin: 4px;
+    background: #e0e0e0; border: 2px outset #fff;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+  }
+  #taskbar-buttons { flex: 1; display: flex; align-items: center; gap: 4px; padding-left: 4px; }
+  .task-btn { background: #e0e0e0; border: 2px outset #fff; padding: 2px 8px; font-size: 12px; cursor: pointer; }
+  .task-btn.active { background:#000080; color:#fff; }
+  #tray { width: 250px; height: 40px; }
 
-    iframe {
-      border: none;
-    }
+  /* Start menu */
+  #startmenu {
+    position: absolute; bottom: 40px; left: 5px; width: 240px;
+    border: 2px solid #000; display: none;
+    z-index: 2000; background:#c0c0c0;
+    transform: translateY(20px); opacity: 0;
+    transition: transform 0.2s ease-out, opacity 0.2s ease-out;
+  }
+  #startmenu.show { display: block; transform: translateY(0); opacity: 1; }
 
-    /* Taskbar */
-    #taskbar {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      width: 100%;
-      height: 40px;
-      z-index: 10;
-    }
+  /* Overlay for shutdown dialog */
+  #overlay { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.3); z-index: 3000; }
+  #overlay iframe { width: 400px; height: 220px; border: none; }
 
-    /* Start menu */
-    #startmenu {
-      position: absolute;
-      bottom: 40px;   /* sits right above the taskbar */
-      left: 5px;      /* aligns with Start button margin */
-      width: 220px;
-      border: none;
-      display: none;  /* hidden until toggled */
-      z-index: 20;
-    }
-  </style>
+  /* Windows */
+  .win { background: #c0c0c0; border: 2px solid #000; box-shadow: 2px 2px #404040; position: absolute; }
+  .titlebar { background: #000080; color: #fff; padding: 2px 4px; cursor: move; display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+  .titlebar .buttons button { font-size: 10px; margin-left: 2px; }
+</style>
 </head>
 <body>
-  <div id="desktop-area">
-    <!-- desktop icons or windows go here -->
-  </div>
+  <div id="desktop-area"></div>
 
-  <!-- Start menu -->
+  <!-- Start Menu -->
   <iframe id="startmenu" src="./system/startmenu.html"></iframe>
 
   <!-- Taskbar -->
   <div id="taskbar">
-    <iframe src="./system/taskbar.html" width="100%" height="40"></iframe>
+    <div id="start-btn"><img src="./media/start-button.png" alt="Start" height="20"></div>
+    <div id="taskbar-buttons"></div>
+    <iframe id="tray" src="./system/taskbar_with_tray.html"></iframe>
   </div>
 
-  <script>
-    const menu = document.getElementById("startmenu");
+  <!-- Shutdown Overlay -->
+  <div id="overlay"><iframe id="shutdownDialog" src=""></iframe></div>
 
-    // Handle messages from child iframes
-    window.addEventListener("message", (event) => {
-      // Toggle start menu visibility
-      if (event.data === "toggle-startmenu") {
-        menu.style.display =
-          (menu.style.display === "none" || menu.style.display === "")
-            ? "block"
-            : "none";
-      }
+  <!-- Hidden shutdown audio -->
+  <audio id="shutdown-audio" src="./media/shutdown.mp3"></audio>
 
-      // ✅ Resize start menu dynamically
-      if (event.data.type === "resize-startmenu") {
-        menu.style.height = event.data.height + "px";
-      }
-    });
+<script>
+  const desktop=document.getElementById('desktop-area');
+  const menu=document.getElementById('startmenu');
+  const overlay=document.getElementById('overlay');
+  const shutdownDialog=document.getElementById('shutdownDialog');
+  const taskButtons=document.getElementById('taskbar-buttons');
+  const shutdownAudio=document.getElementById('shutdown-audio');
+  let zTop=10, winCount=0;
+  const windows=new Map();
 
-    // Optional: close start menu when clicking outside
-    document.addEventListener("click", (e) => {
-      if (!menu.contains(e.target) && e.target.tagName !== "IFRAME") {
-        menu.style.display = "none";
+  // Desktop icons
+  const icons = [
+    {id:'mycomputer', title:'My Computer', icon:'./media/icons/mycomputer.png', app:'apps/mycomputer.html', x:20, y:20},
+    {id:'recyclebin', title:'Recycle Bin', icon:'./media/icons/recyclebin.png', app:'apps/recyclebin.html', x:20, y:100},
+    {id:'paint', title:'Chilled Paint', icon:'./media/icons/app_paint.png', app:'apps/paint.html', x:20, y:180},
+    {id:'wordpad', title:'WordPad', icon:'./media/icons/app_wordpad.png', app:'apps/wordpad.html', x:20, y:260},
+    {id:'calc', title:'Calculator', icon:'./media/icons/app_calc.png', app:'apps/calc.html', x:20, y:340},
+    {id:'mines', title:'CatSweeper', icon:'./media/icons/app_mines.png', app:'apps/minesweeper.html', x:20, y:420}
+  ];
+  icons.forEach(ic=>{
+    const el=document.createElement('div'); el.className='icon';
+    el.style.left=ic.x+'px'; el.style.top=ic.y+'px';
+    el.innerHTML=`<img src="${ic.icon}"><div>${ic.title}</div>`;
+    el.addEventListener('dblclick',()=> openApp(ic.id,ic.title,ic.app));
+    desktop.appendChild(el);
+  });
+
+  // Start button toggles menu
+  document.getElementById('start-btn').addEventListener('click',()=> toggleStartMenu());
+
+  function toggleStartMenu(){
+    if(!menu.classList.contains('show')){ menu.style.display='block'; setTimeout(()=>menu.classList.add('show'),10); }
+    else{ menu.classList.remove('show'); setTimeout(()=>menu.style.display='none',200); }
+  }
+  function closeStartMenu(){ if(menu.classList.contains('show')){ menu.classList.remove('show'); setTimeout(()=>menu.style.display='none',200); } }
+
+  // Open window + taskbar button
+  function openApp(id,title,src){
+    if(windows.has(id)){ focusWin(windows.get(id)); return; }
+    const win=document.createElement('div');
+    win.className='win'; win.dataset.id=id;
+    win.style.left=(60+(winCount*20)%200)+'px';
+    win.style.top=(60+(winCount*20)%160)+'px';
+    win.style.width='480px'; win.style.height='360px';
+    win.style.zIndex=++zTop;
+    win.innerHTML=`
+      <div class="titlebar" onmousedown="dragStart(event,this.parentElement)">
+        <span>${title}</span>
+        <div class="buttons">
+          <button onclick="minimizeWin('${id}')">▃</button>
+          <button onclick="maximizeWin('${id}')">▭</button>
+          <button onclick="closeWin('${id}')">✕</button>
+        </div>
+      </div>
+      <iframe src="${src}" width="100%" height="90%"></iframe>`;
+    desktop.appendChild(win);
+    windows.set(id,win); winCount++;
+
+    // Taskbar button
+    const btn=document.createElement('button');
+    btn.textContent=title;
+    btn.className='task-btn active';
+    btn.onclick=()=> restoreWin(id);
+    taskButtons.appendChild(btn);
+    win.dataset.btnId=title;
+    focusWin(win);
+  }
+
+  function focusWin(win){
+    win.style.display='block';
+    win.style.zIndex=++zTop;
+    [...taskButtons.children].forEach(b=>b.classList.remove('active'));
+    const btn=[...taskButtons.children].find(b=>b.textContent===win.querySelector('.titlebar span').textContent);
+    if(btn) btn.classList.add('active');
+  }
+
+  window.closeWin=(id)=>{
+    const w=windows.get(id); if(!w)return;
+    w.remove(); windows.delete(id);
+    const btn=[...taskButtons.children].find(b=>b.textContent===idToTitle(id));
+    if(btn) btn.remove();
+  };
+  window.minimizeWin=(id)=>{
+    const w=windows.get(id); if(!w)return;
+    w.style.display='none';
+    [...taskButtons.children].forEach(b=>b.classList.remove('active'));
+  };
+  function restoreWin(id){
+    const w=windows.get(id); if(!w)return;
+    w.style.display='block'; focusWin(w);
+  }
+  window.maximizeWin=(id)=>{
+    const w=windows.get(id); if(!w)return;
+    if(w.dataset.maxed){
+      w.style.width='480px'; w.style.height='360px'; w.style.left='60px'; w.style.top='60px'; w.dataset.maxed='';
+    } else {
+      w.style.left='0'; w.style.top='0'; w.style.width='100%'; w.style.height='calc(100% - 40px)'; w.dataset.maxed='true';
+    }
+  };
+
+  // Dragging
+  let dragTarget=null, offsetX=0, offsetY=0;
+  window.dragStart=(e,win)=>{ dragTarget=win; offsetX=e.clientX-win.offsetLeft; offsetY=e.clientY-win.offsetTop;
+    document.onmousemove=dragMove; document.onmouseup=dragEnd; };
+  function dragMove(e){ if(dragTarget){ dragTarget.style.left=(e.clientX-offsetX)+'px'; dragTarget.style.top=(e.clientY-offsetY)+'px'; } }
+  function dragEnd(){ dragTarget=null; document.onmousemove=null; document.onmouseup=null; }
+
+  function idToTitle(id){ const ic=icons.find(i=>i.id===id); return ic?ic.title:id; }
+
+  // Message listener
+  window.addEventListener('message', e=>{
+    const d=e.data;
+    if(d==='open-shutdown-dialog'){ closeStartMenu(); shutdownDialog.src='./system/shutdown_dialog.html'; overlay.style.display='flex'; }
+    if(d==='close-shutdown-dialog'){ overlay.style.display='none'; }
+    if(d && d.type==='shutdown-choice'){
+      overlay.style.display='none';
+      if(d.choice==='shutdown'){ location.href='./system/shutdown_wait.html?next=safe'; }
+      if(d.choice==='restart'){ location.href='./system/shutdown_wait.html?next=../index.html'; }
+      if(d.choice==='msdos'){ location.href='./system/shutdown_wait.html?next=../system/cmd.html'; }
+    }
+    if(d && d.type==='play-sound'){
+      if(d.sound==='shutdown'){
+        shutdownAudio.currentTime=0;
+        shutdownAudio.play().catch(err=>console.log("Audio blocked:", err));
       }
-    });
-  </script>
+    }
+    if(d && d.type==='open-app'){
+      const ic = icons.find(i=>i.id === d.id);
+      if(ic) openApp(ic.id, ic.title, ic.app);
+    }
+  });
+
+  // Close Start menu on outside click
+  document.addEventListener('click', e=>{
+    if(!menu.contains(e.target) && !document.getElementById('taskbar').contains(e.target)) closeStartMenu();
+  });
+</script>
 </body>
 </html>
