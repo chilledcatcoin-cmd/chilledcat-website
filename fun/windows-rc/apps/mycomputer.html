@@ -1,1 +1,367 @@
-<!DOCTYPE html><html><body><h3>My Computer (stub)</h3></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>K-Drive Explorer</title>
+<style>
+  :root {
+    --win-bg: #c0c0c0;
+    --panel-bg: #dcdcdc;
+    --panel-border: #808080;
+    --content-bg: #fff;
+  }
+  html,body { height:100%; margin:0; }
+  body {
+    background: var(--win-bg);
+    font-family: "MS Sans Serif", Arial, sans-serif;
+    font-size: 13px;
+    color:#000;
+    display:flex;
+    flex-direction:row;
+    overflow:hidden;
+  }
+
+  /* Layout */
+  .left { width:220px; background:var(--panel-bg); border-right:2px solid var(--panel-border); padding:6px; overflow:auto; font-size:12px; }
+  .right { flex:1; display:flex; flex-direction:column; padding:6px; overflow:hidden; }
+  .breadcrumb { background:var(--panel-bg); border:1px solid var(--panel-border); padding:4px; font-size:13px; }
+  .toolbar { margin-top:4px; display:flex; gap:6px; flex-shrink:0; }
+  .content { flex:1; background:#fff; margin-top:6px; padding:8px; overflow:auto; border:1px solid #b0b0b0; }
+  .statusbar { background:var(--panel-bg); border-top:2px solid var(--panel-border); padding:4px 6px; font-size:12px; display:flex; justify-content:space-between; }
+
+  /* Tree */
+  .tree-item { display:flex; align-items:center; gap:4px; padding:2px 4px; cursor:pointer; user-select:none; }
+  .tree-item:hover { background:#e8e8e8; }
+  .tree-item img { width:20px; height:20px; image-rendering:pixelated; }
+  .toggle { width:12px; text-align:center; cursor:pointer; user-select:none; }
+
+  /* File grid */
+  .item-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:14px; }
+  .item { display:flex; flex-direction:column; align-items:center; gap:4px; padding:6px; cursor:pointer; border-radius:4px; border:1px solid transparent; }
+  .item:hover { background:#f1f7ff; border-color:#c9defe; }
+  .thumb { width:64px; height:64px; object-fit:cover; image-rendering:pixelated; border:2px solid #ddd; background:#fafafa; }
+
+  /* Modals */
+  .modal-backdrop, .preview-backdrop, .unlock-overlay { position:fixed; inset:0; }
+  .modal-backdrop { background:rgba(0,0,0,0.45); display:none; align-items:center; justify-content:center; z-index:9998; }
+  .modal { width:360px; background:#fff; padding:14px; border:2px solid #808080; box-shadow:4px 4px #404040; font-size:13px; }
+  .preview-backdrop { background:rgba(0,0,0,0.75); display:none; align-items:center; justify-content:center; z-index:9999; }
+  .preview { background:#fff; padding:10px; border:2px solid #808080; box-shadow:4px 4px #000; max-width:92%; max-height:92%; }
+  .preview img { max-width:100%; max-height:80vh; display:block; image-rendering:pixelated; }
+  .unlock-overlay { background:#000; color:#0f0; font-family:"Courier New", monospace; display:none; padding:16px; z-index:10000; white-space:pre-wrap; }
+  button.btn { padding:3px 8px; border:1px solid #808080; background:#e0e0e0; font-size:12px; cursor:pointer; }
+  button.btn.primary { background:#cfe3ff; border:1px solid #6b9be0; }
+</style>
+</head>
+<body>
+  <!-- Left pane -->
+  <div class="left" id="left-pane"></div>
+
+  <!-- Right pane -->
+  <div class="right">
+    <div class="breadcrumb" id="breadcrumb">/k-drive</div>
+    <div class="toolbar">
+      <button class="btn" onclick="openFolder('/k-drive')">Root</button>
+      <button class="btn" onclick="goUp()">Up</button>
+      <span style="margin-left:6px;color:#333;">Tips: Ctrl+Shift+K (reveal) • Ctrl+Alt+C (secrets)</span>
+    </div>
+    <div class="content" id="content-area"></div>
+    <div class="statusbar" id="statusbar"><span></span><span></span></div>
+    <div class="unlock-overlay" id="unlock-overlay"><div id="unlock-type"></div></div>
+  </div>
+
+  <!-- Password Modal -->
+  <div class="modal-backdrop" id="pw-backdrop">
+    <div class="modal">
+      <div><strong>Password required</strong></div>
+      <div style="color:#555;">Enter password to open "His Porn Collection"</div>
+      <input id="pw-input" type="password" placeholder="Password" autocomplete="off" />
+      <div id="pw-hint" style="display:none;color:#555;">Hint: it purrs twice 😺😺</div>
+      <div id="pw-error" style="display:none;color:#b00;"></div>
+      <div style="margin-top:8px;text-align:right;">
+        <button class="btn" onclick="closePw()">Cancel</button>
+        <button class="btn primary" onclick="submitPw()">Open</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Preview Modal -->
+  <div class="preview-backdrop" id="preview-backdrop">
+    <div class="preview">
+      <div style="text-align:right; margin-bottom:6px;"><button class="btn" onclick="closePreview()">Close</button></div>
+      <img id="preview-img" src="" alt="">
+    </div>
+  </div>
+
+<script>
+/* ==========================================================
+   Fake Win95 Filesystem
+   ========================================================== */
+const FS = {
+  "/k-drive": { type:"folder", children:{
+    "Documents": { type:"folder", children:{
+      "todo.txt":  { type:"file", mime:"text", editable:true, content:"- Buy catnip\n- Chill\n- Feed the cat\n" },
+      "notes.txt": { type:"file", mime:"text", editable:true, content:"Write whatever you want here.\n(Secrets: type 'unlock' or 'catnip' and Save.)" }
+    }},
+    "Pictures": { type:"folder", children:{
+      "scenery.png": { type:"file", mime:"image", src:"../media/k-drive/pictures/scenery.png" },
+      "cat.png":     { type:"file", mime:"image", src:"../media/k-drive/pictures/cat.png" }
+    }},
+    "Litter Bin": { type:"folder", system:true, children:{} },
+    "His Porn Collection": {
+      type:"folder", protected:true, hidden:true, __unlocked:false,
+      children:{
+        "pixel1.png": { type:"file", mime:"image", src:"../media/k-drive/porn/1.png" },
+        "pixel2.png": { type:"file", mime:"image", src:"../media/k-drive/porn/2.png" },
+        "pixel3.png": { type:"file", mime:"image", src:"../media/k-drive/porn/3.png" }
+      }
+    },
+    "Secrets": { type:"folder", hidden:true, children:{} },
+    "Readme.txt": { type:"file", mime:"text", content:"Welcome to K-Drive. Have a chill day 😸" }
+  }}
+};
+
+/* Generate 120 hidden chilled cat secrets */
+(function generateSecrets(){
+  const base = [
+    "Chilled Cat Fact: I nap with one eye open… on bugs.",
+    "Secret: The blue theme purrs louder at night.",
+    "Pro tip: Press Ctrl+Alt+C for cooler vibes.",
+    "Joke: Why don't cats use calendars? Too many paws.",
+    "Hint: Type 'catnip' somewhere interesting.",
+    "Note: Windows 95? More like Windows Nine Lives.",
+    "Confession: I hid a fish in your RAM.",
+    "Easter: The taskbar is actually a scratching post.",
+    "Rumor: Minesweeper? More like Mice-sweeper.",
+    "Lore: The Start button starts naps."
+  ];
+  const S = FS["/k-drive"].children["Secrets"].children;
+  for (let i=1;i<=120;i++){
+    const n = String(i).padStart(3,"0");
+    const line = base[i % base.length];
+    S[`secret_${n}.txt`] = {
+      type:"file", mime:"text", content:`# Chilled Secret ${n}\n\n${line}\n\nSigned,\n  =^._.^= ﾉ`
+    };
+  }
+})();
+
+/* ==========================================================
+   State
+   ========================================================== */
+let currentPath = "/k-drive";
+let unlockReveal = false;
+let secretsReveal = false;
+let attempts = 0, lockedOut = false;
+const storedHash = "ccd758e72a8a8cb5f140bab26837f363908550f2558ed86d229ec9016fed49b9"; // SHA256('meowmeow')
+
+/* DOM refs */
+const leftPane    = document.getElementById("left-pane");
+const contentArea = document.getElementById("content-area");
+const breadcrumb  = document.getElementById("breadcrumb");
+const statusbar   = document.getElementById("statusbar");
+
+const pwBackdrop  = document.getElementById("pw-backdrop");
+const pwInput     = document.getElementById("pw-input");
+const pwError     = document.getElementById("pw-error");
+const pwHint      = document.getElementById("pw-hint");
+
+const unlockOverlay = document.getElementById("unlock-overlay");
+const unlockType    = document.getElementById("unlock-type");
+
+/* ==========================================================
+   Helpers
+   ========================================================== */
+function norm(p){ return p.replace(/\/+/g,"/").replace(/\/$/,""); }
+function parts(p){ return norm(p).split("/").filter(Boolean); }
+function getNode(p){
+  p = norm(p);
+  const a = parts(p);
+  if (a[0] !== "k-drive") return null;
+  let n = FS["/k-drive"];
+  for (let i=1;i<a.length;i++){ if (!n.children) return null; n = n.children[a[i]]; }
+  return n;
+}
+function deleteNode(p){
+  const a = parts(p);
+  let n = FS["/k-drive"];
+  for (let i=1;i<a.length-1;i++){ n = n.children[a[i]]; if(!n) return false; }
+  delete n.children[a[a.length-1]];
+  return true;
+}
+
+/* ==========================================================
+   Tree rendering
+   ========================================================== */
+function renderTree(){
+  leftPane.innerHTML = "";
+  renderTreeNode("/k-drive", leftPane);
+}
+function renderTreeNode(path, container){
+  const node = getNode(path); if(!node) return;
+  const name = path.split("/").pop() || "K-Drive";
+
+  const item = document.createElement("div");
+  item.className = "tree-item";
+  const icon = (name === "Litter Bin") ? "litterbin.png" : "folder.png";
+  item.innerHTML = `<span class="toggle">▶</span><img src="../media/icons/${icon}"><span>${name}</span>`;
+  container.appendChild(item);
+
+  const childBox = document.createElement("div");
+  childBox.style.paddingLeft = "14px";
+  childBox.style.display = "none";
+  container.appendChild(childBox);
+
+  const toggle = item.querySelector(".toggle");
+  let rendered = false;
+  toggle.onclick = (e)=>{
+    e.stopPropagation();
+    const open = childBox.style.display !== "block";
+    childBox.style.display = open ? "block" : "none";
+    toggle.textContent = open ? "▼" : "▶";
+    if (open && !rendered && node.children){
+      for (const c in node.children){
+        if (c === "His Porn Collection" && !unlockReveal) continue;
+        if (c === "Secrets" && !secretsReveal) continue;
+        if (node.children[c].type === "folder"){
+          renderTreeNode(path + "/" + c, childBox);
+        }
+      }
+      rendered = true;
+    }
+  };
+
+  item.onclick = ()=> openFolder(path);
+
+  if (name === "Litter Bin"){
+    item.ondragover = (e)=>{ e.preventDefault(); item.classList.add("drag-over"); };
+    item.ondragleave = ()=> item.classList.remove("drag-over");
+    item.ondrop = (e)=>{ e.preventDefault(); item.classList.remove("drag-over"); sendToLitter(e.dataTransfer.getData("path")); };
+  }
+}
+
+/* ==========================================================
+   Folder & file rendering
+   ========================================================== */
+function renderFolder(path){
+  currentPath = norm(path);
+  const node = getNode(currentPath);
+  breadcrumb.textContent = currentPath;
+
+  if (!node || node.type !== "folder"){
+    contentArea.innerHTML = "<div>Folder not found.</div>";
+    statusbar.innerHTML = "<span>0 items</span><span></span>";
+    return;
+  }
+
+  if (node.protected && !node.__unlocked){
+    contentArea.innerHTML = `<div>Password protected.</div><button class="btn" onclick="promptPassword('${currentPath}')">Enter password</button>`;
+    statusbar.innerHTML = "<span>Locked</span><span>"+currentPath+"</span>";
+    return;
+  }
+
+  let html = `<div class="item-grid">`;
+  const children = node.children || {};
+  let count = 0;
+
+  for (const name in children){
+    const ch = children[name];
+    if (name === "His Porn Collection" && !unlockReveal) continue;
+    if (name === "Secrets" && !secretsReveal) continue;
+    count++;
+
+    if (ch.type === "folder"){
+      const icon = name === "Litter Bin" ? "../media/icons/litterbin.png" : "../media/icons/folder.png";
+      html += `<div class="item" data-path="${currentPath}/${name}" draggable="true"><img class="thumb" src="${icon}"><div>${name}</div></div>`;
+    } else if (ch.type === "file"){
+      const thumb = ch.mime === "image" ? ch.src : "../media/icons/textfile.png";
+      html += `<div class="item" data-path="${currentPath}/${name}" draggable="true"><img class="thumb" src="${thumb}"><div>${name}</div></div>`;
+    }
+  }
+  html += `</div>`;
+  contentArea.innerHTML = html;
+  statusbar.innerHTML = `<span>${count} items</span><span>${currentPath}</span>`;
+
+  document.querySelectorAll(".item").forEach(it=>{
+    const path = it.dataset.path;
+    it.ondragstart = (e)=> e.dataTransfer.setData("path", path);
+    it.onclick = ()=>{
+      const n = getNode(path);
+      if (!n) return;
+      if (n.type === "folder"){ openFolder(path); }
+      else if (n.mime === "image") openFileImage(path, n.src);
+      else if (n.mime === "text") openFileText(path);
+    };
+  });
+}
+
+function openFolder(path){
+  const n = getNode(path);
+  if (!n) return;
+  if (n.protected && !n.__unlocked){ promptPassword(path); return; }
+  renderFolder(path);
+}
+function goUp(){ if (currentPath==="/k-drive") return; const a=parts(currentPath); openFolder("/"+a.slice(0,-1).join("/")); }
+
+/* ==========================================================
+   File actions
+   ========================================================== */
+function openFileText(path){
+  const n = getNode(path); if(!n) return;
+  contentArea.innerHTML = `<textarea id="te" style="width:100%;height:80%;">${n.content||""}</textarea><button class="btn" onclick="saveText('${path}')">Save</button>`;
+}
+function saveText(path){
+  const n=getNode(path); n.content=document.getElementById("te").value;
+  if(/unlock/i.test(n.content)) { unlockReveal=true; secretsReveal=true; renderTree(); }
+  if(/catnip/i.test(n.content)) { secretsReveal=true; renderTree(); }
+  renderFolder(currentPath);
+}
+function openFileImage(path,src){ document.getElementById("preview-img").src=src; document.getElementById("preview-backdrop").style.display="flex"; }
+function closePreview(){ document.getElementById("preview-backdrop").style.display="none"; }
+
+/* ==========================================================
+   Litter Bin
+   ========================================================== */
+function sendToLitter(path){
+  const n=getNode(path); if(!n) return;
+  const name=path.split("/").pop(); const parent="/"+parts(path).slice(0,-1).join("/");
+  const bin=getNode("/k-drive/Litter Bin");
+  const copy=JSON.parse(JSON.stringify(n)); copy.__originalPath=parent;
+  bin.children[name]=copy; deleteNode(path); renderFolder(currentPath);
+}
+
+/* ==========================================================
+   Password handling
+   ========================================================== */
+function promptPassword(path){ pwBackdrop.style.display="flex"; pwInput.value=""; pwError.style.display="none"; pwHint.style.display="none"; pwInput.focus(); pwBackdrop.dataset.target=path; }
+function closePw(){ pwBackdrop.style.display="none"; }
+async function submitPw(){
+  if(lockedOut){ pwError.style.display="block"; pwError.textContent="Locked out. Restart required."; return; }
+  const val=pwInput.value; const hash=await digest(val);
+  if(hash===storedHash){ closePw(); showUnlock(()=>{ getNode(pwBackdrop.dataset.target).__unlocked=true; renderFolder(pwBackdrop.dataset.target); }); }
+  else { attempts++; pwError.style.display="block"; pwError.textContent="Wrong password"; if(attempts>=3){lockedOut=true; pwError.textContent="Too many tries. Locked."; } if(attempts===2) pwHint.style.display="block"; }
+}
+async function digest(str){ const buf=new TextEncoder().encode(str); const h=await crypto.subtle.digest("SHA-256",buf); return Array.from(new Uint8Array(h)).map(b=>b.toString(16).padStart(2,"0")).join(""); }
+
+/* ==========================================================
+   Unlock animation
+   ========================================================== */
+function showUnlock(cb){
+  unlockOverlay.style.display="block"; unlockType.textContent="";
+  const lines=["Decrypting…","Bypassing litter protection…","Uncovering hidden folder…","Done."];
+  let i=0; function tick(){ if(i<lines.length){ unlockType.textContent+=lines[i++]+"\\n"; setTimeout(tick,600); } else { setTimeout(()=>{ unlockOverlay.style.display="none"; cb(); },800);} }
+  tick();
+}
+
+/* ==========================================================
+   Init
+   ========================================================== */
+renderTree();
+renderFolder("/k-drive");
+
+document.addEventListener("keydown",(e)=>{
+  if(e.ctrlKey && e.shiftKey && e.key==="K"){ unlockReveal=true; renderTree(); renderFolder(currentPath); }
+  if(e.ctrlKey && e.altKey && e.key.toUpperCase()==="C"){ secretsReveal=true; renderTree(); renderFolder(currentPath); }
+});
+</script>
+</body>
+</html>

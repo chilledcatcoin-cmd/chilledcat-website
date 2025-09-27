@@ -9,7 +9,7 @@
     height:40px;
     display:flex;
     align-items:center;
-    justify-content:flex-end; /* tray aligns right */
+    justify-content:flex-end;
     font-family:sans-serif;
   }
   #tray {
@@ -18,14 +18,16 @@
     gap:10px;
     padding-right:10px;
   }
-  #tray img { width:16px; height:16px; image-rendering:pixelated; }
+  #tray img { width:16px; height:16px; image-rendering:pixelated; cursor:pointer; }
   #clock { font-size:12px; min-width:60px; text-align:right; }
 </style>
 </head>
 <body>
   <div id="tray">
-    <img src="../media/icons/network.png" alt="Network">
-    <img src="../media/icons/volume.png" alt="Volume">
+    <img id="networkBtn" src="../media/icons/network.png" alt="Network"
+         onclick="parent.postMessage('toggle-network','*')">
+    <img id="volumeBtn" src="../media/icons/volume.png" alt="Volume"
+         onclick="parent.postMessage('toggle-volume','*')">
     <div id="clock"></div>
   </div>
 
@@ -37,8 +39,7 @@
     h=h%12; if(h===0)h=12; if(m<10)m='0'+m;
     document.getElementById('clock').textContent=h+':'+m+' '+ampm;
   }
-  setInterval(updateClock,1000);
-  updateClock();
+  setInterval(updateClock,1000); updateClock();
 </script>
 </body>
 </html>
