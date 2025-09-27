@@ -281,6 +281,52 @@
     if(e.data==='toggle-volume') openApp('volume');
     if(e.data==='toggle-network') openApp('network');
   });
+function openShutdownDialog() {
+  const overlay = document.getElementById("overlay");
+  const frame = document.getElementById("shutdownDialog");
+  frame.src = "./system/shutdown_dialog.html"; // adjust path if needed
+  overlay.style.display = "flex";
+}
+
+function closeShutdownDialog() {
+  document.getElementById("overlay").style.display = "none";
+  document.getElementById("shutdownDialog").src = "";
+}
+
+window.addEventListener('message', e => {
+  if (e.data === 'open-shutdown-dialog') {
+    openShutdownDialog();
+  }
+});
+
+window.addEventListener('message', e => {
+  if (e.data === 'open-shutdown-dialog') {
+    openShutdownDialog();
+  }
+  if (e.data === 'close-shutdown-dialog') {
+    closeShutdownDialog();
+  }
+
+  // Handle shutdown dialog choices
+  if (e.data.type === 'shutdown-choice') {
+    const choice = e.data.choice;
+
+    closeShutdownDialog(); // hide popup first
+
+    if (choice === 'shutdown') {
+      window.location.href = './system/shutdown_wait.html?next=./safe_to_power_off.html';
+    } else if (choice === 'restart') {
+      window.location.href = './system/shutdown_wait.html?next=../index.html';
+    } else if (choice === 'msdos') {
+      window.location.href = './system/cmd.html';
+    }
+  }
+
+  // Tray apps
+  if (e.data === 'toggle-volume') openApp('volume');
+  if (e.data === 'toggle-network') openApp('network');
+});
+
 </script>
 </body>
 </html>

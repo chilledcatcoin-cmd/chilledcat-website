@@ -10,18 +10,17 @@
     background: #c0c0c0;
     display: flex;
   }
-.sidebar {
-  width: 40px;
-  background: #000080;
-  color: white;
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
-  text-align: center;
-  padding: 10px 0;
-  font-weight: bold;
-  transform: rotate(180deg); /* flip so it reads bottom → top */
-}
-
+  .sidebar {
+    width: 40px;
+    background: #000080;
+    color: white;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    text-align: center;
+    padding: 10px 0;
+    font-weight: bold;
+    transform: rotate(180deg); /* flip so it reads bottom → top */
+  }
   .menu {
     flex: 1;
     display: flex;
@@ -113,9 +112,9 @@
     window.top.postMessage({ type:'open-app', id:id }, '*');
   }
 
-  // Open shutdown dialog
+  // Tell desktop.html to open the shutdown dialog
   function shutdown() {
-    window.top.postMessage('open-shutdown-dialog','*');
+    window.top.postMessage('open-shutdown-dialog', '*');
   }
 </script>
 </body>
