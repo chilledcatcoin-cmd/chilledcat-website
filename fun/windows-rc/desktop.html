@@ -185,7 +185,7 @@
     if(d==='close-shutdown-dialog'){ overlay.style.display='none'; }
     if(d && d.type==='shutdown-choice'){
       overlay.style.display='none';
-      if(d.choice==='shutdown'){ location.href='./system/shutdown_wait.html?next=safe'; }
+      if(d.choice==='shutdown'){ location.href='./system/shutdown_wait.html?next=../system/safe_to_power_off.html'; }
       if(d.choice==='restart'){ location.href='./system/shutdown_wait.html?next=../index.html'; }
       if(d.choice==='msdos'){ location.href='./system/shutdown_wait.html?next=../system/cmd.html'; }
     }
