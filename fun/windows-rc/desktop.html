@@ -138,13 +138,15 @@
     {id:'paint', title:'Chilled Paint', icon:'./media/icons/app_paint.png', app:'apps/paint.html', x:20, y:180, width:640, height:480},
     {id:'chillpad', title:'Chillpad', icon:'./media/icons/app_chillpad.png', app:'apps/chillpad.html', x:20, y:260, width:600, height:400},
     {id:'catculator', title:'Catculator', icon:'./media/icons/app_catculator.png', app:'apps/catculator.html', x:20, y:340, width:300, height:400},
-    {id:'mines', title:'CatSweeper', icon:'./media/icons/app_mines.png', app:'apps/minesweeper.html', x:20, y:420, width:600, height:600}
+    {id:'mines', title:'CatSweeper', icon:'./media/icons/app_mines.png', app:'apps/minesweeper.html', x:20, y:420, width:600, height:600},
+    {id:'catclicker', title:'Cat Clicker ’97+', icon:'./media/icons/app_catclicker.png', app:'apps/catclicker.html', x:20, y:500, width:800, height:600}
   ];
 
   // Tray-only apps
   const trayApps = {
-    volume:  { id:'volume',  title:'Volume Control',        icon:'./media/icons/volume.png',  app:'apps/volume.html',  width:250, height:120 },
-    network: { id:'network', title:'Network Connections',   icon:'./media/icons/network.png', app:'apps/network.html', width:300, height:200 }
+    volume:  { id:'volume',  title:'Volume Control',        icon:'./media/icons/volume.png',  app:'apps/volume.html',  width:160, height:320 },
+    network: { id:'network', title:'Network Connections',   icon:'./media/icons/network.png', app:'apps/network.html', width:520, height:280 },
+    clock:   { id:'clock',   title:'Chilled Cat Clock',  icon:'./media/icons/clock.png',   app:'apps/clock.html',   width:300, height:450 }
   };
 
   // Helpers
@@ -290,6 +292,7 @@
   window.addEventListener('message', e=>{
     if(e.data==='toggle-volume') openApp('volume');
     if(e.data==='toggle-network') openApp('network');
+    if (e.data==='toggle-clock') openApp('clock');
   });
 function openShutdownDialog() {
   const overlay = document.getElementById("overlay");
@@ -317,20 +320,20 @@ window.addEventListener('message', e => {
     closeShutdownDialog();
   }
 
-  // Handle shutdown dialog choices
-  if (e.data.type === 'shutdown-choice') {
-    const choice = e.data.choice;
+if (e.data.type === 'shutdown-choice') {
+  const choice = e.data.choice;
 
-    closeShutdownDialog(); // hide popup first
+  closeShutdownDialog(); // hide popup
 
-    if (choice === 'shutdown') {
-      window.location.href = './system/shutdown_wait.html?next=./safe_to_power_off.html';
-    } else if (choice === 'restart') {
-      window.location.href = './system/shutdown_wait.html?next=../index.html';
-    } else if (choice === 'msdos') {
-      window.location.href = './system/cmd.html';
-    }
+  if (choice === 'shutdown') {
+    window.location.href = './system/shutdown_wait.html?next=./safe_to_power_off.html';
+  } else if (choice === 'restart') {
+    window.location.href = './system/shutdown_wait.html?next=../index.html';
+  } else if (choice === 'msdos') {
+    window.location.href = './system/shutdown_wait.html?next=./cmd.html';
   }
+}
+
 
   // Tray apps
   if (e.data === 'toggle-volume') openApp('volume');

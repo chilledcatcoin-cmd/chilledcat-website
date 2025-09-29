@@ -18,8 +18,18 @@
     gap:10px;
     padding-right:10px;
   }
-  #tray img { width:16px; height:16px; image-rendering:pixelated; cursor:pointer; }
-  #clock { font-size:12px; min-width:60px; text-align:right; }
+  #tray img { 
+    width:16px; 
+    height:16px; 
+    image-rendering:pixelated; 
+    cursor:pointer; 
+  }
+  #clock { 
+    font-size:12px; 
+    min-width:60px; 
+    text-align:right; 
+    cursor:pointer;   /* 👈 clickable now */
+  }
 </style>
 </head>
 <body>
@@ -28,18 +38,20 @@
          onclick="parent.postMessage('toggle-network','*')">
     <img id="volumeBtn" src="../media/icons/volume.png" alt="Volume"
          onclick="parent.postMessage('toggle-volume','*')">
-    <div id="clock"></div>
+    <div id="clock" onclick="parent.postMessage('toggle-clock','*')"></div>
   </div>
 
 <script>
   function updateClock(){
-    const now=new Date();
-    let h=now.getHours(), m=now.getMinutes();
-    let ampm=h>=12?'PM':'AM';
-    h=h%12; if(h===0)h=12; if(m<10)m='0'+m;
-    document.getElementById('clock').textContent=h+':'+m+' '+ampm;
+    const now = new Date();
+    let h = now.getHours(), m = now.getMinutes();
+    let ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12; if (h === 0) h = 12;
+    if (m < 10) m = '0' + m;
+    document.getElementById('clock').textContent = h + ':' + m + ' ' + ampm;
   }
-  setInterval(updateClock,1000); updateClock();
+  setInterval(updateClock, 1000);
+  updateClock();
 </script>
 </body>
 </html>
