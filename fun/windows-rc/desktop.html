@@ -225,7 +225,7 @@ iframe.fullscreen {
     {id:'mines',title:'CatSweeper',icon:'./media/icons/app_mines.png',app:'apps/minesweeper.html'},
     {id:'catclicker',title:'Cat Clicker ’97+',icon:'./media/icons/app_catclicker.png',app:'apps/catclicker.html',width:800,height:600},
     {id:'flappycat',title:'Flappy Cat',icon:'./media/icons/app_flappycat.png',app:'apps/flappycat.html'},
-    {id:'chillscape', title:'ChillScape Navigator', icon:'./media/icons/chillscape.png', app:'apps/chillscape.html', width:800, height:600 }
+    {id:'chillscape', title:'ChillScape Navigator', icon:'./media/icons/chillscape.png', app:'apps/chillscape.html'}
   ];
 
   const trayApps={
@@ -431,26 +431,57 @@ window.maximizeWin = (id) => {
   function dragMoveWin(e){if(dragTarget){dragTarget.style.left=(e.clientX-offsetX2)+'px';dragTarget.style.top=(e.clientY-offsetY2)+'px';}}
   function dragEndWin(){dragTarget=null;document.onmousemove=null;document.onmouseup=null;}
 
-  function addResize(win){
-    const right=win.querySelector('.resize-handle.right');
-    const bottom=win.querySelector('.resize-handle.bottom');
-    const corner=win.querySelector('.resize-handle.corner');
-    let startX,startY,startW,startH;
-    function startResize(e,dir){
-      startX=e.clientX; startY=e.clientY;
-      startW=win.offsetWidth; startH=win.offsetHeight;
-      function resize(ev){
-        if(dir==='right'||dir==='corner') win.style.width=startW+(ev.clientX-startX)+'px';
-        if(dir==='bottom'||dir==='corner') win.style.height=startH+(ev.clientY-startY)+'px';
-      }
-      function stop(){window.removeEventListener('mousemove',resize);window.removeEventListener('mouseup',stop);}
-      window.addEventListener('mousemove',resize);
-      window.addEventListener('mouseup',stop);
-    }
-    right.addEventListener('mousedown',e=>startResize(e,'right'));
-    bottom.addEventListener('mousedown',e=>startResize(e,'bottom'));
-    corner.addEventListener('mousedown',e=>startResize(e,'corner'));
+function addResize(win) {
+  const right = win.querySelector('.resize-handle.right');
+  const bottom = win.querySelector('.resize-handle.bottom');
+  const corner = win.querySelector('.resize-handle.corner');
+  let overlay, startX, startY, startW, startH, dir;
+
+  function startResize(e, d) {
+    e.preventDefault();
+    dir = d;
+    startX = e.clientX;
+    startY = e.clientY;
+    startW = win.offsetWidth;
+    startH = win.offsetHeight;
+
+    // 🧱 overlay prevents iframes from eating mouse events
+    overlay = document.createElement('div');
+    overlay.style.position = 'fixed';
+    overlay.style.inset = '0';
+    overlay.style.zIndex = 99999;
+    overlay.style.cursor =
+      d === 'right' ? 'ew-resize' :
+      d === 'bottom' ? 'ns-resize' : 'nwse-resize';
+    overlay.style.background = 'transparent';
+    document.body.appendChild(overlay);
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', stopResize);
   }
+
+  function onMove(e) {
+    if (!overlay) return;
+    if (dir === 'right' || dir === 'corner') {
+      win.style.width = Math.max(200, startW + (e.clientX - startX)) + 'px';
+    }
+    if (dir === 'bottom' || dir === 'corner') {
+      win.style.height = Math.max(150, startH + (e.clientY - startY)) + 'px';
+    }
+  }
+
+  function stopResize() {
+    if (overlay) overlay.remove();
+    overlay = null;
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', stopResize);
+  }
+
+  right.addEventListener('mousedown', e => startResize(e, 'right'));
+  bottom.addEventListener('mousedown', e => startResize(e, 'bottom'));
+  corner.addEventListener('mousedown', e => startResize(e, 'corner'));
+}
+
 
   // Tray messages + shutdown
   window.addEventListener('message', e=>{
@@ -532,28 +563,48 @@ window.maximizeWin = (id) => {
     addEventListener(evt, resetScreensaverTimer);
   });
 
+function closeStartMenu() {
+  const startMenu = document.getElementById("startmenu");
+  const startBtn  = document.getElementById("start-btn");
+  if (startMenu) startMenu.classList.remove("show");
+  if (startBtn)  startBtn.classList.remove("pressed");
+}
+
 window.addEventListener("message", (e) => {
   if (e.data.type === "open-popup") {
     const id = e.data.id;
-    // Map IDs to popup files
     const map = {
       find: "./apps/find.html",
       settings: "./apps/settings.html",
       help: "./apps/help.html",
       run: "./apps/run.html"
     };
+
     if (map[id]) {
-  openApp({ 
-    id: id,
-    title: id.charAt(0).toUpperCase() + id.slice(1),
-    icon: "./media/icons/" + id + ".png",
-    app: map[id],
-    width: 400,
-    height: 300
-  });
-}
+
+      closeStartMenu();
+
+      // Default popup size
+      let w = 400, h = 300;
+
+      // Custom sizes for specific popups
+      if (id === "find")     { w = 650; h = 350; }
+      if (id === "settings") { w = 480; h = 400; }
+      if (id === "help")     { w = 500; h = 400; }
+      if (id === "run")      { w = 320; h = 160; }
+
+      openApp({
+        id,
+        title: id.charAt(0).toUpperCase() + id.slice(1),
+        icon: "./media/icons/" + id + ".png",
+        app: map[id],
+        width: w,
+        height: h
+      });
+    }
   }
 });
+
 
 // Handle start menu resize
 window.addEventListener("message", (e) => {
