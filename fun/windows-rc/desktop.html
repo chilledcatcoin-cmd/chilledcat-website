@@ -4,6 +4,29 @@
 <meta charset="UTF-8">
 <title>Windows RC Desktop</title>
 <style>
+
+iframe.fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  border: none;
+  z-index: 9999; /* always above desktop */
+}
+
+.fullscreen button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 10000;
+  background: #c0c0c0;
+  border: 2px solid #808080;
+  padding: 4px 8px;
+  font-family: "MS Sans Serif", sans-serif;
+  cursor: pointer;
+}
+
   body {
     margin: 0;
     background: url('./media/wallpaper.png') center/cover no-repeat;
@@ -195,11 +218,11 @@
   // Icons
   const icons=[
     {id:'mycomputer',title:'My Computer',icon:'./media/icons/mycomputer.png',app:'apps/mycomputer.html',width:600,height:400},
-    {id:'litterbin',title:'Litter Bin',icon:'./media/icons/litterbin.png',app:'apps/litterbin.html'},
+    {id:'litterbin', title:'Litter Bin', icon:'./media/icons/litterbin.png', app:'apps/litterbin.html', width:600, height:400},
     {id:'paint',title:'Chilled Paint',icon:'./media/icons/app_paint.png',app:'apps/paint.html',width:640,height:480},
     {id:'chillpad',title:'Chillpad',icon:'./media/icons/app_chillpad.png',app:'apps/chillpad.html',width:600,height:400},
     {id:'catculator',title:'Catculator',icon:'./media/icons/app_catculator.png',app:'apps/catculator.html',width:300,height:400},
-    {id:'mines',title:'CatSweeper',icon:'./media/icons/app_mines.png',app:'apps/minesweeper.html',width:600,height:600},
+    {id:'mines',title:'CatSweeper',icon:'./media/icons/app_mines.png',app:'apps/minesweeper.html'},
     {id:'catclicker',title:'Cat Clicker ’97+',icon:'./media/icons/app_catclicker.png',app:'apps/catclicker.html',width:800,height:600},
     {id:'flappycat',title:'Flappy Cat',icon:'./media/icons/app_flappycat.png',app:'apps/flappycat.html'}
   ];
@@ -262,63 +285,87 @@
   startBtn.addEventListener('click',()=>{menu.classList.toggle('show');startBtn.classList.toggle('pressed');});
   document.addEventListener("mousedown",(e)=>{if(!menu.contains(e.target)&&!startBtn.contains(e.target)){menu.classList.remove('show');startBtn.classList.remove("pressed");}});
 
-  // === Window system ===
-  function openApp(icOrId){
-    let ic=(typeof icOrId==="string")?(icons.find(i=>i.id===icOrId)||trayApps[icOrId]):icOrId;
-    if(!ic)return;
+// === Window system ===
+function openApp(icOrId){
+  let ic = (typeof icOrId==="string")
+    ? (icons.find(i=>i.id===icOrId) || trayApps[icOrId])
+    : icOrId;
+  if(!ic) return;
 
-    if(windows.has(ic.id)){focusWin(windows.get(ic.id));return;}
+  // If already open, just focus it
+  if (windows.has(ic.id)) { focusWin(windows.get(ic.id)); return; }
 
-    const win=document.createElement('div');
-    win.className='win';
-    win.dataset.id=ic.id;
-    win.style.left=(60+(winCount*20)%200)+'px';
-    win.style.top=(60+(winCount*20)%160)+'px';
+  const win = document.createElement('div');
+  win.className = 'win';
+  win.dataset.id = ic.id;
+// Default offsets
+let left = 60 + (winCount * 20) % 200;
+let top  = 60 + (winCount * 20) % 160;
 
-    // 🔧 Special sizing for Flappy Cat
-    let w,h;
-    if(ic.id==="flappycat"){
-      w=window.innerWidth;
-      h=window.innerHeight; // full height (taskbar stays above with z-index)
-    } else {
-      w=ic.width||480;
-      h=ic.height||360;
-    }
+// Clamp so the window never spawns outside the desktop
+left = Math.min(left, desktop.offsetWidth  - (ic.width  || 480) - 40);
+top  = Math.min(top,  desktop.offsetHeight - (ic.height || 360) - 40);
 
-    win.style.width=w+"px";
-    win.style.height=h+"px";
-    win.dataset.origWidth=w;
-    win.dataset.origHeight=h;
-    win.style.zIndex=++zTop;
+win.style.left = left + "px";
+win.style.top  = top  + "px";
+  win.style.zIndex = ++zTop;
 
-    win.innerHTML=`
-      <div class="titlebar" onmousedown="dragStart(event,this.parentElement)">
-        <span>${ic.title}</span>
-        <div class="buttons">
-          <button onclick="minimizeWin('${ic.id}')">_</button>
-          <button onclick="maximizeWin('${ic.id}')" class="max-btn">▭</button>
-          <button onclick="closeWin('${ic.id}')">X</button>
-        </div>
-      </div>
-      <iframe src="${ic.app}" width="100%" height="90%"></iframe>
-      <div class="resize-handle right"></div>
-      <div class="resize-handle bottom"></div>
-      <div class="resize-handle corner"></div>
-    `;
+  // Choose a good "restore" size for every app
+  const restoreW = ic.width  || 800;
+  const restoreH = ic.height || 600;
 
-    desktop.appendChild(win);
-    windows.set(ic.id,win);
-    winCount++;
-
-    const btn=document.createElement('button');
-    btn.textContent=idToTitle(ic.id);
-    btn.className='task-btn active';
-    btn.onclick=()=>restoreWin(ic.id);
-    taskButtons.appendChild(btn);
-
-    focusWin(win);
-    addResize(win);
+  // If this is flappycat, start maximized but keep restore size saved
+  let w, h, startMaxed = false;
+  if (ic.id === "flappycat" || ic.id === "mines") {
+    w = desktop.offsetWidth;
+    h = desktop.offsetHeight; // desktop area already excludes the taskbar
+    win.style.left = "0px";
+    win.style.top  = "0px";
+    startMaxed = true;
+  } else {
+    w = restoreW;
+    h = restoreH;
   }
+
+  // Persist sizes
+  win.style.width  = w + "px";
+  win.style.height = h + "px";
+  win.dataset.origWidth  = restoreW;   // restore target
+  win.dataset.origHeight = restoreH;
+
+  win.innerHTML = `
+    <div class="titlebar" onmousedown="dragStart(event,this.parentElement)">
+      <span>${ic.title}</span>
+      <div class="buttons">
+        <button onclick="minimizeWin('${ic.id}')">_</button>
+        <button onclick="maximizeWin('${ic.id}')" class="max-btn">${startMaxed ? "❐" : "▭"}</button>
+        <button onclick="closeWin('${ic.id}')">X</button>
+      </div>
+    </div>
+    <!-- Make the app fill the window below the titlebar -->
+    <iframe src="${ic.app}" style="width:100%; height: calc(100% - 24px); border:0;"></iframe>
+    <div class="resize-handle right"></div>
+    <div class="resize-handle bottom"></div>
+    <div class="resize-handle corner"></div>
+  `;
+
+  // Mark maximized state if we started that way
+  if (startMaxed) win.dataset.maxed = "true";
+
+  desktop.appendChild(win);
+  windows.set(ic.id, win);
+  winCount++;
+
+  // Taskbar button
+  const btn = document.createElement('button');
+  btn.textContent = idToTitle(ic.id);
+  btn.className = 'task-btn active';
+  btn.onclick = () => restoreWin(ic.id);
+  taskButtons.appendChild(btn);
+
+  focusWin(win);
+  addResize(win);
+}
 
   function focusWin(win){
     win.style.display='block';
@@ -347,22 +394,29 @@
     w.style.display='block'; focusWin(w);
   }
 
-  window.maximizeWin=(id)=>{
-    const w=windows.get(id); if(!w)return;
-    const btn=w.querySelector('.max-btn');
-    if(w.dataset.maxed){
-      w.style.width=w.dataset.origWidth+'px';
-      w.style.height=w.dataset.origHeight+'px';
-      w.style.left='60px'; w.style.top='60px';
-      w.dataset.maxed='';
-      btn.textContent="▭";
-    } else {
-      w.style.left='0'; w.style.top='0';
-      w.style.width='100%'; w.style.height='100%'; // fill screen, no gap
-      w.dataset.maxed='true';
-      btn.textContent="❐";
-    }
-  };
+window.maximizeWin = (id) => {
+  const w = windows.get(id);
+  if (!w) return;
+  const btn = w.querySelector('.max-btn');
+
+  if (w.dataset.maxed) {
+    // restore
+    w.style.width  = w.dataset.origWidth  + 'px';
+    w.style.height = w.dataset.origHeight + 'px';
+    w.style.left = '60px';
+    w.style.top  = '60px';
+    w.dataset.maxed = '';
+    btn.textContent = "▭";
+  } else {
+    // maximize to desktop area (which already excludes the taskbar)
+    w.style.left = '0';
+    w.style.top  = '0';
+    w.style.width  = desktop.offsetWidth + 'px';
+    w.style.height = desktop.offsetHeight + 'px';
+    w.dataset.maxed = 'true';
+    btn.textContent = "❐";
+  }
+};
 
   // Dragging windows
   let dragTarget=null,offsetX2=0,offsetY2=0;
@@ -481,4 +535,3 @@
 </script>
 </body>
 </html>
-
