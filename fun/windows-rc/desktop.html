@@ -616,6 +616,67 @@ window.addEventListener("message", (e) => {
   }
 });
 
+// === Run dialog communication ===
+window.addEventListener("message", (e) => {
+  console.log("[DESKTOP] Message received:", e.data);
+
+  if (!e.data || !e.data.type) return;
+
+  // 1. Easter Egg popups
+  if (e.data.type === "showMessage") {
+    const msg = e.data.text || "(no text)";
+    console.log("[DESKTOP] showMessage:", msg);
+
+    const box = document.createElement("div");
+    box.className = "msgbox";
+    box.style.position = "fixed";
+    box.style.left = "50%";
+    box.style.top = "50%";
+    box.style.transform = "translate(-50%, -50%)";
+    box.style.background = "#c0c0c0";
+    box.style.border = "2px outset #fff";
+    box.style.padding = "10px 14px";
+    box.style.fontFamily = '"MS Sans Serif", sans-serif';
+    box.style.fontSize = "13px";
+    box.style.color = "#000";
+    box.style.boxShadow = "3px 3px #808080";
+    box.style.zIndex = 99999;
+    box.innerHTML = `
+      <div style="margin-bottom:8px;">${msg}</div>
+      <div style="text-align:right;">
+        <button style="font-family:'MS Sans Serif';font-size:12px;padding:1px 8px;">OK</button>
+      </div>
+    `;
+    document.body.appendChild(box);
+    box.querySelector("button").addEventListener("click", () => box.remove());
+  }
+
+  // 2. Launch app requests
+  if (e.data.type === "openApp") {
+    console.log("[DESKTOP] openApp request for", e.data.app);
+    const path = e.data.app;
+    const id = path.split("/").pop().replace(".html", "");
+
+    if (windows.has("run")) closeWin("run");
+
+    openApp({
+      id,
+      title: id.charAt(0).toUpperCase() + id.slice(1),
+      icon: "./media/icons/" + id + ".png",
+      app: path,
+      width: 600,
+      height: 400
+    });
+  }
+
+  // 3. Close Run
+  if (e.data.type === "closeRun") {
+    console.log("[DESKTOP] Closing Run window");
+    if (windows.has("run")) closeWin("run");
+  }
+});
+
+
   resetScreensaverTimer();
 </script>
 </body>
