@@ -224,7 +224,8 @@ iframe.fullscreen {
     {id:'catculator',title:'Catculator',icon:'./media/icons/app_catculator.png',app:'apps/catculator.html',width:300,height:400},
     {id:'mines',title:'CatSweeper',icon:'./media/icons/app_mines.png',app:'apps/minesweeper.html'},
     {id:'catclicker',title:'Cat Clicker ’97+',icon:'./media/icons/app_catclicker.png',app:'apps/catclicker.html',width:800,height:600},
-    {id:'flappycat',title:'Flappy Cat',icon:'./media/icons/app_flappycat.png',app:'apps/flappycat.html'}
+    {id:'flappycat',title:'Flappy Cat',icon:'./media/icons/app_flappycat.png',app:'apps/flappycat.html'},
+    {id:'chillscape', title:'ChillScape Navigator', icon:'./media/icons/chillscape.png', app:'apps/chillscape.html', width:800, height:600 }
   ];
 
   const trayApps={
@@ -316,7 +317,7 @@ win.style.top  = top  + "px";
 
   // If this is flappycat, start maximized but keep restore size saved
   let w, h, startMaxed = false;
-  if (ic.id === "flappycat" || ic.id === "mines") {
+  if (ic.id === "flappycat" || ic.id === "mines" || ic.id === "chillscape") {
     w = desktop.offsetWidth;
     h = desktop.offsetHeight; // desktop area already excludes the taskbar
     win.style.left = "0px";
@@ -530,6 +531,39 @@ window.maximizeWin = (id) => {
   ["mousemove","keydown","mousedown","touchstart"].forEach(evt => {
     addEventListener(evt, resetScreensaverTimer);
   });
+
+window.addEventListener("message", (e) => {
+  if (e.data.type === "open-popup") {
+    const id = e.data.id;
+    // Map IDs to popup files
+    const map = {
+      find: "./apps/find.html",
+      settings: "./apps/settings.html",
+      help: "./apps/help.html",
+      run: "./apps/run.html"
+    };
+    if (map[id]) {
+  openApp({ 
+    id: id,
+    title: id.charAt(0).toUpperCase() + id.slice(1),
+    icon: "./media/icons/" + id + ".png",
+    app: map[id],
+    width: 400,
+    height: 300
+  });
+}
+  }
+});
+
+// Handle start menu resize
+window.addEventListener("message", (e) => {
+  if (e.data.type === "resize-startmenu") {
+    const frame = document.getElementById("startmenu");
+    if (frame) {
+      frame.style.height = e.data.height + "px";
+    }
+  }
+});
 
   resetScreensaverTimer();
 </script>

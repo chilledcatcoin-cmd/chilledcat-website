@@ -86,14 +86,17 @@
       </div>
     </div>
     <div class="divider"></div>
-    <div class="item">
+    <div class="item" onclick="openPopup('find')">
       <img src="../media/icons/find.png"> Find
     </div>
-    <div class="item">
+    <div class="item" onclick="openPopup('settings')">
       <img src="../media/icons/settings.png"> Settings
     </div>
-    <div class="item">
+    <div class="item" onclick="openPopup('help')">
       <img src="../media/icons/help.png"> Help
+    </div>
+    <div class="item" onclick="openPopup('run')">
+      <img src="../media/icons/run.png"> Run...
     </div>
     <div class="divider"></div>
     <div class="item" onclick="shutdown()">
@@ -110,6 +113,11 @@
   // Launch app (handled by desktop.html)
   function openApp(id) {
     window.top.postMessage({ type:'open-app', id:id }, '*');
+  }
+
+  // Open popup dialogs (Find/Settings/Help/Run)
+  function openPopup(id) {
+    window.top.postMessage({ type:'open-popup', id:id }, '*');
   }
 
   // Tell desktop.html to open the shutdown dialog
