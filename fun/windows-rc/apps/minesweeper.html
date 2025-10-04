@@ -4,7 +4,6 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>CatSweeper ’97 — Chilled Cat Minesweeper</title>
-<!-- You can override stickers via ?stickers=url1,url2 or by setting window.CATSWEEPER_STICKERS before this script. -->
 <link rel="preload" as="image" href="../media/stickers/premium_sticker1.webp">
 <link rel="preload" as="image" href="../media/stickers/premium_sticker2.webp">
 <link rel="preload" as="image" href="../media/stickers/premium_sticker3.webp">
@@ -25,8 +24,8 @@
   select, .input{background:#002a59;color:#fff;border:2px solid #7fc0ff;border-radius:6px;padding:4px 8px}
   .stat{font-weight:700}
   .stat b{color:var(--accent)}
-  .board-wrap{padding:10px;display:grid;place-items:center}
-  .board{display:grid;gap:var(--gap);background:#001d3d;padding:var(--gap);border:4px groove var(--edge);border-radius:6px;user-select:none}
+  .board-wrap{padding:10px;display:grid;place-items:center;overflow:hidden;max-width:100%;max-height:calc(100vh - 180px);box-sizing:border-box}
+  .board{display:grid;gap:var(--gap);background:#001d3d;padding:var(--gap);border:4px groove var(--edge);border-radius:6px;user-select:none;transform-origin:top center;}
   .cell{width:var(--tile);height:var(--tile);display:grid;place-items:center;font-weight:800;font-size:14px;line-height:1;border-radius:4px;cursor:pointer;transition:transform .05s}
   .cell.hidden{background:#0f3a75;border:2px outset #a9d2ff}
   .cell.hidden:active{transform:translateY(1px)}
@@ -41,7 +40,6 @@
   .overlay.show{display:grid}
   .modal{background:linear-gradient(var(--bg1), var(--bg2));border:4px ridge var(--edge);border-radius:10px;padding:16px 18px;text-align:center;width:min(92vw,420px)}
   .good{color:var(--good)}.bad{color:var(--bad)}
-  /* Added for popup image */
   .result-img{display:block;max-width:140px;margin:8px auto;border-radius:10px;box-shadow:0 4px 12px rgba(0,0,0,.6)}
   .footer{padding:8px 10px;text-align:center;font-size:12px;opacity:.9}
   .diag{padding:6px 10px;font-size:12px;opacity:.85}
@@ -88,7 +86,6 @@
   <div id="overlay" class="overlay" role="dialog" aria-modal="true">
     <div class="modal">
       <h2 id="resultTitle">You win!</h2>
-      <!-- Added image element for popup -->
       <img id="resultImage" class="result-img" src="" alt="Chilled Cat" style="display:none;">
       <p id="resultBody">Nice and chilly.</p>
       <button class="btn" id="again">Play Again</button>
@@ -97,7 +94,19 @@
 
 <script>
 (function(){
-  // ====== Sticker sources (with fallbacks & diagnostics) ======
+  // === AUTO-SHRINK FUNCTION ===
+  function adjustBoardScale() {
+    const wrap = document.querySelector('.board-wrap');
+    const board = document.getElementById('board');
+    if (!board) return;
+    const rect = board.getBoundingClientRect();
+    const maxW = wrap.clientWidth - 20;
+    const maxH = window.innerHeight - 220; // leave space for UI/footer
+    let scale = Math.min(1, maxW / rect.width, maxH / rect.height);
+    board.style.transform = `scale(${scale})`;
+  }
+
+  // ====== Sticker sources ======
   function getStickerList(){
     const q = new URLSearchParams(location.search).get('stickers');
     const viaQuery = q ? q.split(',').map(s=>s.trim()).filter(Boolean) : null;
@@ -131,7 +140,7 @@
   function updateDiag(){
     if(MISSING.length){
       DIAG.style.display = 'block';
-      DIAG.innerHTML = `⚠️ Some sticker images failed to load. <br><b>Missing</b>:<br><code>${MISSING.map(x=>escapeHtml(x)).join('<br>')}</code><br>Tip: check paths/casing on GitHub Pages (case-sensitive). You can override stickers via <code>?stickers=URL1,URL2</code>.`;
+      DIAG.innerHTML = `⚠️ Some sticker images failed to load. <br><b>Missing</b>:<br><code>${MISSING.map(x=>escapeHtml(x)).join('<br>')}</code>`;
     } else {
       DIAG.style.display = 'none';
       DIAG.textContent='';
@@ -200,7 +209,7 @@
   function placeMines(excludeR, excludeC){
     const spots = [];
     for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){
-      if(Math.abs(r-excludeR)<=1 && Math.abs(c-excludeC)<=1) continue; // keep 3x3 first-click safe
+      if(Math.abs(r-excludeR)<=1 && Math.abs(c-excludeC)<=1) continue;
       spots.push({r,c});
     }
     for(let i=spots.length-1;i>0;i--){ const j=(Math.random()* (i+1))|0; [spots[i],spots[j]]=[spots[j],spots[i]]; }
@@ -208,21 +217,25 @@
     for(let r=0;r<rows;r++) for(let c=0;c<cols;c++) if(!grid[r][c]){ let n=0; forNeighbors(r,c,(nr,nc)=>{ if(grid[nr][nc]) n++; }); counts[r][c]=n; }
   }
 
-  function buildBoard(){
-    boardEl.innerHTML=''; cssVars();
-    const frag = document.createDocumentFragment();
-    for(let r=0;r<rows;r++){
-      for(let c=0;c<cols;c++){
-        const cell=document.createElement('div');
-        cell.className='cell hidden';
-        cell.setAttribute('role','gridcell');
-        cell.setAttribute('aria-label','hidden');
-        cell.dataset.r=r; cell.dataset.c=c;
-        frag.appendChild(cell);
-      }
+ function buildBoard(){
+  boardEl.innerHTML=''; cssVars();
+  const frag = document.createDocumentFragment();
+  for(let r=0;r<rows;r++){
+    for(let c=0;c<cols;c++){
+      const cell=document.createElement('div');
+      cell.className='cell hidden';
+      cell.setAttribute('role','gridcell');
+      cell.setAttribute('aria-label','hidden');
+      cell.dataset.r=r; cell.dataset.c=c;
+      frag.appendChild(cell);
     }
-    boardEl.appendChild(frag);
   }
+  boardEl.appendChild(frag);
+
+  // 🔧 Force reflow before scaling
+  boardEl.offsetHeight; 
+  adjustBoardScale(); 
+}
 
   function updateTimer(){ timeEl.textContent = timer.toFixed(1); }
   function updateCounters(){ remainingEl.textContent = safeRemaining; flagsEl.textContent = flags; bestEl.textContent = bestTimeLabel(); }
@@ -261,7 +274,6 @@
   function showMine(cellEl){
     cellEl.classList.add('mine'); cellEl.innerHTML='';
     const im = document.createElement('img'); im.className='mine-icon';
-    // pick from verified AVAILABLE (falls back to data URI)
     const pick = (AVAILABLE.length ? AVAILABLE[(Math.random()*AVAILABLE.length)|0] : FALLBACK_DATA_URI);
     im.src = pick; im.alt='Chilled Cat';
     im.onerror = () => { cellEl.textContent='😺'; };
@@ -290,13 +302,10 @@
     resultTitle.textContent = win ? 'You win! 😺' : 'Boom! 🐾';
     resultTitle.className = win ? 'good' : 'bad';
     resultBody.textContent = win ? `Cleared in ${timer.toFixed(1)}s` : 'A horde of chilled cats overran the board!';
-
-    // Always show a chilled cat image in popup (win or boom)
     const pick = (AVAILABLE.length ? AVAILABLE[(Math.random()*AVAILABLE.length)|0] : FALLBACK_DATA_URI);
     resultImage.src = pick;
     resultImage.style.display = 'block';
     resultImage.onerror = () => { resultImage.style.display = 'none'; };
-
     if(win) { recordBest(); updateCounters(); }
     overlay.classList.add('show');
   }
@@ -305,12 +314,12 @@
     setDifficulty(diffSel.value);
     customWrap.style.display = diffSel.value==='c' ? 'inline-flex' : 'none';
     resetState(); buildBoard(); updateCounters();
-    // Hide overlay & image for fresh start
     resultImage.style.display = 'none';
     overlay.classList.remove('show');
+    adjustBoardScale(); // ✅ always scale after new game
   }
 
-  // Events: clicks, right-click, touch long-press
+  // Events
   boardEl.addEventListener('contextmenu', e=>{ e.preventDefault(); });
   boardEl.addEventListener('mousedown', (e)=>{
     const cell = e.target.closest('.cell'); if(!cell) return;
@@ -337,6 +346,7 @@
   diffSel.addEventListener('change', newGame);
   againBtn.addEventListener('click', newGame);
   window.addEventListener('keydown', (e)=>{ if(e.key.toLowerCase()==='r'){ newGame(); } });
+  window.addEventListener('resize', adjustBoardScale);
 
   // init
   newGame();
