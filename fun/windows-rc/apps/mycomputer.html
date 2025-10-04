@@ -136,20 +136,13 @@ async function openFolder(path){
 
 async function getFolderListing(path) {
   try {
-    let rel;
+    // Determine where this HTML is hosted
+    const base = window.location.pathname
+      .replace(/\/apps\/.*/, "")   // strip /apps/mycomputer.html
+      .replace(/\/$/, "");         // remove trailing slash
 
-    // Decide the correct relative path for fetch()
-    if (path.startsWith("../media/")) {
-      // already relative to apps/
-      rel = encodeURI(path) + "/index.json";
-    } else if (path.startsWith("/media/")) {
-      // running from /apps/, need to go up one level
-      rel = "../" + encodeURI(path.replace(/^\/+/, "")) + "/index.json";
-    } else {
-      // fallback: assume same pattern
-      rel = "../" + encodeURI(path) + "/index.json";
-    }
-
+    // Always fetch relative to the project base
+    const rel = `${base}${encodeURI(path)}/index.json`;
     console.log("Fetching:", rel);
 
     const r = await fetch(rel, { cache: "no-store" });
@@ -167,6 +160,7 @@ async function getFolderListing(path) {
     return [];
   }
 }
+
 
 
 
